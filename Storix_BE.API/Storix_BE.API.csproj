@@ -12,8 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Storix_BE.Application\Storix_BE.Application.csproj" />
-    <ProjectReference Include="..\Storix_BE.Infrastructure\Storix_BE.Infrastructure.csproj" />
+    <ProjectReference Include="..\Storix_BE.Application\Storix_BE.Service.csproj" />
+    <ProjectReference Include="..\Storix_BE.Infrastructure\Storix_BE.Repository.csproj" />
   </ItemGroup>
 
 </Project>
