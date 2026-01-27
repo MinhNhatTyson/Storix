@@ -2,7 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Storix_BE.Domain\Storix_BE.Domain.csproj" />
-    <ProjectReference Include="..\Storix_BE.Application\Storix_BE.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Interfaces\" />
   </ItemGroup>
 
   <PropertyGroup>

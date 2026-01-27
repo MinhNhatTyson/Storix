@@ -1,18 +1,51 @@
+using CarServ.API.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Storix_BE.API.Configuration;
 using Storix_BE.Domain.Context;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+// Add configuration sources
+builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true) // optional: true allows fallback
+    .AddUserSecrets<Program>(optional: true) // Only works if your project has user secrets enabled
+    .AddEnvironmentVariables()
+    .AddCommandLine(args);
 
-// Add services to the container.
+var config = builder.Configuration;
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(config)
+    .CreateLogger();
+
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Logging.AddSerilog();
+builder.Services.AddSingleton(Log.Logger);
+builder.Services.AddSingleton<Serilog.Extensions.Hosting.DiagnosticContext>();
+builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddControllers(options =>
+{
+    options.SuppressAsyncSuffixInActionNames = false;
+});
+
+builder.Services.AddDatabaseConfiguration(config);
+builder.Services.AddServiceConfiguration(config);
+builder.Services.AddRepositoryConfiguration(config);
+builder.Services.AddJwtAuthenticationService(config);
+builder.Services.AddThirdPartyServices(config);
+builder.Services.AddSwaggerService();
+
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+});
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<StorixDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 var app = builder.Build();
+app.UseSerilogRequestLogging();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -21,8 +54,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
