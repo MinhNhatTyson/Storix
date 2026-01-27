@@ -16,7 +16,7 @@ namespace Storix_BE.API.Configuration
                 throw new ArgumentException("Connection string 'DefaultConnection' is not configured.");
             }
             services.AddDbContext<StorixDbContext>(options =>
-                options.UseSqlServer(connectionString));
+                options.UseNpgsql(connectionString));
             return services;
         }
     }
