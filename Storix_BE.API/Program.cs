@@ -6,7 +6,11 @@ using Storix_BE.Domain.Context;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-// Add configuration sources
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<StorixDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true) // optional: true allows fallback
@@ -29,7 +33,7 @@ builder.Services.AddControllers(options =>
     options.SuppressAsyncSuffixInActionNames = false;
 });
 
-builder.Services.AddDatabaseConfiguration(config);
+/*builder.Services.AddDatabaseConfiguration(config);*/
 builder.Services.AddServiceConfiguration(config);
 builder.Services.AddRepositoryConfiguration(config);
 builder.Services.AddJwtAuthenticationService(config);
