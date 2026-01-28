@@ -6,6 +6,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Storix_BE.Domain.Models;
+using Microsoft.AspNetCore.Identity;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 
 namespace Storix_BE.API.Controllers
 {
@@ -21,14 +25,46 @@ namespace Storix_BE.API.Controllers
         [HttpPost("Login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            var user = _accService.Login(request.UserName, request.Password);
-
+            var user = _accService.Login(request.Email, request.Password);
+            
             if (user == null || user.Result == null)
                 return Unauthorized();
 
             var token = GenerateJSONWebToken(user.Result);
 
-            return Ok(token);
+            return Ok(new
+            {
+                Token = token,
+                RoleId = user.Result.RoleId
+            });
+        }
+        [HttpGet("login-google")]
+        public IResult LoginWithGoogle([FromQuery] string returnURL, LinkGenerator linkGenerator, SignInManager<User> signManager, HttpContext context)
+        {
+            //tà đạo
+            if (returnURL == null) returnURL = "https://localhost:5173";
+            //
+            var properties = signManager.ConfigureExternalAuthenticationProperties("Google", linkGenerator.GetPathByName(context, "GoogleLoginCallback" + $"?returnURL={returnURL}"));
+
+            return Results.Challenge(properties, ["Google"]);
+        }
+        [HttpGet("login-google-callback", Name = "GoogleLoginCallback")]
+        public async Task<IActionResult> LoginWithGoogleCallback([FromQuery] string returnURL, HttpContext context, IUserService service)
+        {
+            var result = await context.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+            if (!result.Succeeded)
+            {
+                return Unauthorized();
+            }
+
+            var user = service.LoginWithGoogleAsync(result.Principal);
+            var token = GenerateJSONWebToken(user.Result);
+            /*return Results.Redirect(returnURL);*/
+            return Ok(new
+            {
+                Token = token,
+                RoleId = user.Result.RoleId
+            });
         }
         private string GenerateJSONWebToken(User user)
         {
@@ -51,6 +87,6 @@ namespace Storix_BE.API.Controllers
             return tokenString;
         }
 
-        public sealed record LoginRequest(string UserName, string Password);
+        public sealed record LoginRequest(string Email, string Password);
     }
 }

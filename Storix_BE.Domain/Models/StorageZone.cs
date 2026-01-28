@@ -19,7 +19,7 @@ public partial class StorageZone
 
     public virtual ICollection<Shelf> Shelves { get; set; } = new List<Shelf>();
 
-    public virtual Type? Type { get; set; }
+    public virtual ProductType? Type { get; set; }
 
     public virtual Warehouse? Warehouse { get; set; }
 }

@@ -43,5 +43,5 @@ public partial class Product
 
     public virtual ICollection<TransferOrderItem> TransferOrderItems { get; set; } = new List<TransferOrderItem>();
 
-    public virtual Type? Type { get; set; }
+    public virtual ProductType? Type { get; set; }
 }
