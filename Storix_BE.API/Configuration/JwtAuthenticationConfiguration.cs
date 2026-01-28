@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -18,7 +19,23 @@ namespace Storix_BE.API.Configuration
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
             }
-                ).AddJwtBearer(options =>
+                ).AddCookie().AddGoogle(options =>
+                {
+                    var clientId = configuration["Authentication:Google:ClientId"];
+                    if(clientId == null)
+                    {
+                        throw new ArgumentNullException(nameof(clientId));
+                    }
+                    var clientSecret = configuration["Authentication:Google:ClientSecret"];
+                    if (clientSecret == null)
+                    {
+                        throw new ArgumentNullException(nameof(clientSecret));
+                    }
+
+                    options.ClientId = clientId;
+                    options.ClientSecret = clientSecret;
+                    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                }).AddJwtBearer(options =>
                 {
                     options.RequireHttpsMetadata = false;
                     options.SaveToken = true;

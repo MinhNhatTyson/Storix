@@ -4,6 +4,7 @@ using Storix_BE.Service.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -19,6 +20,11 @@ namespace Storix_BE.Service.Implementation
         public async Task<User> Login(string email, string password)
         {
             return await _accRepository.Login(email, password);
+        }
+
+        public async Task<User> LoginWithGoogleAsync(ClaimsPrincipal? claimsPrincipal)
+        {
+            return await _accRepository.LoginWithGoogleAsync(claimsPrincipal);
         }
     }
 }

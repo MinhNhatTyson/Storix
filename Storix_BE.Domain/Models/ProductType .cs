@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Storix_BE.Domain.Models;
 
-public partial class Type
+public partial class ProductType
 {
     public int Id { get; set; }
 
@@ -13,3 +13,4 @@ public partial class Type
 
     public virtual ICollection<StorageZone> StorageZones { get; set; } = new List<StorageZone>();
 }
+

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Models;
-using Type = Storix_BE.Domain.Models.Type;
 
 namespace Storix_BE.Domain.Context;
 
@@ -71,7 +70,7 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<TransferOrderItem> TransferOrderItems { get; set; }
 
-    public virtual DbSet<Type> Types { get; set; }
+    public virtual DbSet<ProductType> Types { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -839,7 +838,7 @@ public partial class StorixDbContext : DbContext
                 .HasConstraintName("fk_transfer_order_items_transfer_order_id");
         });
 
-        modelBuilder.Entity<Type>(entity =>
+        modelBuilder.Entity<ProductType >(entity =>
         {
             entity.HasKey(e => e.Id).HasName("types_pkey");
 
