@@ -35,8 +35,7 @@ namespace Storix_BE.API.Controllers
             return Ok(new
             {
                 Token = token,
-                RoleId = user.Result.RoleId,
-                CompanyId = user.Result.CompanyId
+                RoleId = user.Result.RoleId
             });
         }
         [HttpGet("login-google")]
@@ -64,8 +63,7 @@ namespace Storix_BE.API.Controllers
             return Ok(new
             {
                 Token = token,
-                RoleId = user.Result.RoleId,
-                CompanyId = user.Result.CompanyId
+                RoleId = user.Result.RoleId
             });
         }
         private string GenerateJSONWebToken(User user)
@@ -77,9 +75,8 @@ namespace Storix_BE.API.Controllers
                     , _config["Jwt:Audience"]
                     , new Claim[]
                     {
-                new(ClaimTypes.Email, user.Email ?? string.Empty),
-                new(ClaimTypes.Role, user.RoleId.ToString() ?? string.Empty),
-                new("CompanyId", (user.CompanyId?.ToString() ?? string.Empty)),
+                new(ClaimTypes.Email, user.Email),
+                new(ClaimTypes.Role, user.RoleId.ToString()),
                     },
                     expires: DateTime.Now.AddMinutes(120),
                     signingCredentials: credentials
