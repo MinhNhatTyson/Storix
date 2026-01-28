@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace Storix_BE.Domain.Models;
 
@@ -15,6 +16,7 @@ public partial class User
 
     public string? Phone { get; set; }
 
+    [JsonIgnore]
     public string? PasswordHash { get; set; }
 
     public int? RoleId { get; set; }

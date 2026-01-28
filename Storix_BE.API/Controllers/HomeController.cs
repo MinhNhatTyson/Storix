@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Storix_BE.Service.Interfaces;
 using Microsoft.IdentityModel.Tokens;
@@ -35,7 +35,8 @@ namespace Storix_BE.API.Controllers
             return Ok(new
             {
                 Token = token,
-                RoleId = user.Result.RoleId
+                RoleId = user.Result.RoleId,
+                CompanyId = user.Result.CompanyId
             });
         }
         [HttpGet("login-google")]
@@ -63,7 +64,8 @@ namespace Storix_BE.API.Controllers
             return Ok(new
             {
                 Token = token,
-                RoleId = user.Result.RoleId
+                RoleId = user.Result.RoleId,
+                CompanyId = user.Result.CompanyId
             });
         }
         private string GenerateJSONWebToken(User user)
@@ -75,8 +77,9 @@ namespace Storix_BE.API.Controllers
                     , _config["Jwt:Audience"]
                     , new Claim[]
                     {
-                new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Role, user.RoleId.ToString()),
+                new(ClaimTypes.Email, user.Email ?? string.Empty),
+                new(ClaimTypes.Role, user.RoleId.ToString() ?? string.Empty),
+                new("CompanyId", (user.CompanyId?.ToString() ?? string.Empty)),
                     },
                     expires: DateTime.Now.AddMinutes(120),
                     signingCredentials: credentials

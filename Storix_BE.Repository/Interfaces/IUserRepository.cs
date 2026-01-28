@@ -22,5 +22,14 @@ namespace Storix_BE.Repository.Interfaces
             string adminEmail,
             string? adminPhone,
             string password);
+
+        Task<User?> GetByEmailAsync(string email);
+        Task<List<User>> GetUsersByCompanyIdAsync(int companyId);
+        Task<User> CreateUserAsync(int companyId, string fullName, string email, string? phone, string password, string roleName);
+        Task<Role?> GetRoleByIdAsync(int roleId);
+        Task<Role?> GetRoleByNameAsync(string name);
+        Task<User?> GetUserByIdWithRoleAsync(int userId);
+        Task<int> UpdateAsync(User user);
+        Task<bool> RemoveAsync(User user);
     }
 }

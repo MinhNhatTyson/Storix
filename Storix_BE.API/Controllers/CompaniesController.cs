@@ -61,8 +61,9 @@ namespace Storix_BE.API.Controllers
                 _config["Jwt:Audience"],
                 new Claim[]
                 {
-                    new(ClaimTypes.Email, user.Email),
-                    new(ClaimTypes.Role, user.RoleId.ToString()),
+                    new(ClaimTypes.Email, user.Email ?? string.Empty),
+                    new(ClaimTypes.Role, user.RoleId.ToString() ?? string.Empty),
+                    new("CompanyId", (user.CompanyId?.ToString() ?? string.Empty)),
                 },
                 expires: DateTime.Now.AddMinutes(120),
                 signingCredentials: credentials

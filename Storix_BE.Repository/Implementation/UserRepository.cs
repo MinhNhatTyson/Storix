@@ -136,5 +136,69 @@ namespace Storix_BE.Repository.Implementation
                 throw;
             }
         }
+
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+        public async Task<List<User>> GetUsersByCompanyIdAsync(int companyId)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .Where(u => u.CompanyId == companyId)
+                .OrderBy(u => u.Id)
+                .ToListAsync();
+        }
+
+        public async Task<User> CreateUserAsync(int companyId, string fullName, string email, string? phone, string password, string roleName)
+        {
+            if (roleName != "Manager" && roleName != "Staff")
+                throw new InvalidOperationException("Only Manager or Staff role can be assigned. Company Administrator cannot be created via this endpoint.");
+
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (existingUser != null)
+                throw new InvalidOperationException("Email is already registered.");
+
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+            if (role == null)
+                throw new InvalidOperationException($"Role '{roleName}' not found. Please seed roles in the database.");
+
+            var user = new User
+            {
+                CompanyId = companyId,
+                FullName = fullName,
+                Email = email,
+                Phone = phone,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                RoleId = role.Id,
+                Status = "Active",
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                UpdatedAt = null
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            return user;
+        }
+
+        public async Task<Role?> GetRoleByIdAsync(int roleId)
+        {
+            return await _context.Roles.FindAsync(roleId);
+        }
+
+        public async Task<User?> GetUserByIdWithRoleAsync(int userId)
+        {
+            return await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+
+        public async Task<Role?> GetRoleByNameAsync(string name)
+        {
+            return await _context.Roles.FirstOrDefaultAsync(r => r.Name == name);
+        }
     }
 }
