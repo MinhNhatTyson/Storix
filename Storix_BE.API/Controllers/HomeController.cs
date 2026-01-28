@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Storix_BE.Service.Interfaces;
 using Microsoft.IdentityModel.Tokens;
