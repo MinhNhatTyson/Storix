@@ -1,4 +1,4 @@
-﻿using Storix_BE.Domain.Models;
+using Storix_BE.Domain.Models;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
 using System;
@@ -25,6 +25,29 @@ namespace Storix_BE.Service.Implementation
         public async Task<User> LoginWithGoogleAsync(ClaimsPrincipal? claimsPrincipal)
         {
             return await _accRepository.LoginWithGoogleAsync(claimsPrincipal);
+        }
+
+        public async Task<User> RegisterCompanyAsync(
+            string companyName,
+            string? businessCode,
+            string? address,
+            string? contactEmail,
+            string? contactPhone,
+            string adminFullName,
+            string adminEmail,
+            string? adminPhone,
+            string password)
+        {
+            return await _accRepository.RegisterCompanyAdministratorAsync(
+                companyName,
+                businessCode,
+                address,
+                contactEmail,
+                contactPhone,
+                adminFullName,
+                adminEmail,
+                adminPhone,
+                password);
         }
     }
 }

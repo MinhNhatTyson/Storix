@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Storix_BE.Infrastructure\Storix_BE.Repository.csproj" />
+  <ProjectReference Include="..\Storix_BE.Repository\Storix_BE.Repository.csproj" />
   </ItemGroup>
 
 </Project>

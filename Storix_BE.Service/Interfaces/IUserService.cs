@@ -1,4 +1,4 @@
-﻿using Storix_BE.Domain.Models;
+using Storix_BE.Domain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,5 +12,15 @@ namespace Storix_BE.Service.Interfaces
     {
         Task<User> Login(string email, string password);
         Task<User> LoginWithGoogleAsync(ClaimsPrincipal? claimsPrincipal);
+        Task<User> RegisterCompanyAsync(
+            string companyName,
+            string? businessCode,
+            string? address,
+            string? contactEmail,
+            string? contactPhone,
+            string adminFullName,
+            string adminEmail,
+            string? adminPhone,
+            string password);
     }
 }
