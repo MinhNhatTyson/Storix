@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Storix_BE.API.Configuration;
 using Storix_BE.Domain.Context;
+using Storix_BE.Service.Implementation;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +40,7 @@ builder.Services.AddRepositoryConfiguration(config);
 builder.Services.AddJwtAuthenticationService(config);
 builder.Services.AddThirdPartyServices(config);
 builder.Services.AddSwaggerService();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
