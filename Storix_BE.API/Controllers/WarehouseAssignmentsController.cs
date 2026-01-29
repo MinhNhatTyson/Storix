@@ -6,7 +6,7 @@ using AssignWarehouseRequest = Storix_BE.Service.Interfaces.AssignWarehouseReque
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/assignwarehouse")]
     [Authorize]
     public class WarehouseAssignmentsController : ControllerBase
     {
