@@ -1,24 +1,21 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Storix_BE.Service.Interfaces;
-using CreateUserRequest = Storix_BE.Service.Interfaces.CreateUserRequest;
-using UpdateUserRequest = Storix_BE.Service.Interfaces.UpdateUserRequest;
+using AssignWarehouseRequest = Storix_BE.Service.Interfaces.AssignWarehouseRequest;
 
 namespace Storix_BE.API.Controllers
 {
-    /// <summary>
-    /// CRUD accounts within the company. Only Company Administrator can use these endpoints.
-    /// Manager and Staff cannot register; they are created by Company Administrator.
-    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class UsersController : ControllerBase
+    public class WarehouseAssignmentsController : ControllerBase
     {
+        private readonly IWarehouseAssignmentService _assignmentService;
         private readonly IUserService _userService;
 
-        public UsersController(IUserService userService)
+        public WarehouseAssignmentsController(IWarehouseAssignmentService assignmentService, IUserService userService)
         {
+            _assignmentService = assignmentService;
             _userService = userService;
         }
 
@@ -35,10 +32,10 @@ namespace Storix_BE.API.Controllers
         }
 
         /// <summary>
-        /// List all users in the current company. Company Administrator only.
+        /// List all warehouse assignments within the current company. Company Administrator only.
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        public async Task<IActionResult> GetAssignments()
         {
             var roleId = GetRoleIdFromToken();
             var email = GetEmailFromToken();
@@ -50,8 +47,8 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var users = await _userService.GetUsersByCompanyAsync(caller.CompanyId.Value, roleId.Value);
-                return Ok(users);
+                var assignments = await _assignmentService.GetAssignmentsByCompanyAsync(caller.CompanyId.Value, roleId.Value);
+                return Ok(assignments);
             }
             catch (UnauthorizedAccessException)
             {
@@ -60,10 +57,10 @@ namespace Storix_BE.API.Controllers
         }
 
         /// <summary>
-        /// Get a user by id (must belong to your company). Company Administrator only.
+        /// List Manager/Staff assigned to a specific warehouse (within your company).
         /// </summary>
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetUser(int id)
+        [HttpGet("warehouse/{warehouseId:int}")]
+        public async Task<IActionResult> GetAssignmentsByWarehouse(int warehouseId)
         {
             var roleId = GetRoleIdFromToken();
             var email = GetEmailFromToken();
@@ -75,23 +72,27 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var users = await _userService.GetUsersByCompanyAsync(caller.CompanyId.Value, roleId.Value);
-                var user = users.FirstOrDefault(u => u.Id == id);
-                if (user == null)
-                    return NotFound();
-                return Ok(user);
+                var assignments = await _assignmentService.GetAssignmentsByWarehouseAsync(
+                    caller.CompanyId.Value,
+                    roleId.Value,
+                    warehouseId);
+                return Ok(assignments);
             }
             catch (UnauthorizedAccessException)
             {
                 return Forbid();
             }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         /// <summary>
-        /// Create a new user (Manager or Staff only). Company Administrator only.
+        /// Assign a warehouse to a Manager/Staff. Company Administrator only.
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        public async Task<IActionResult> AssignWarehouse([FromBody] AssignWarehouseRequest request)
         {
             var roleId = GetRoleIdFromToken();
             var email = GetEmailFromToken();
@@ -103,8 +104,8 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var user = await _userService.CreateUserAsync(caller.CompanyId.Value, roleId.Value, request);
-                return Ok(user);
+                var assignment = await _assignmentService.AssignWarehouseAsync(caller.CompanyId.Value, roleId.Value, request);
+                return Ok(assignment);
             }
             catch (UnauthorizedAccessException)
             {
@@ -117,10 +118,10 @@ namespace Storix_BE.API.Controllers
         }
 
         /// <summary>
-        /// Update a user (Manager or Staff). Company Administrator only.
+        /// Unassign a user from a warehouse. Company Administrator only.
         /// </summary>
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
+        [HttpDelete]
+        public async Task<IActionResult> UnassignWarehouse([FromQuery] int userId, [FromQuery] int warehouseId)
         {
             var roleId = GetRoleIdFromToken();
             var email = GetEmailFromToken();
@@ -132,40 +133,8 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var user = await _userService.UpdateUserAsync(id, caller.CompanyId.Value, roleId.Value, request);
-                if (user == null)
-                    return NotFound();
-                return Ok(user);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Delete a user (Manager or Staff only; cannot delete Company Administrator). Company Administrator only.
-        /// </summary>
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteUser(int id)
-        {
-            var roleId = GetRoleIdFromToken();
-            var email = GetEmailFromToken();
-            if (roleId == null || string.IsNullOrEmpty(email))
-                return Unauthorized();
-
-            try
-            {
-                var caller = await _userService.GetByEmailAsync(email);
-                if (caller?.CompanyId == null)
-                    return Unauthorized();
-
-                var deleted = await _userService.DeleteUserAsync(id, caller.CompanyId.Value, roleId.Value, caller.Id);
-                if (!deleted)
+                var removed = await _assignmentService.UnassignWarehouseAsync(caller.CompanyId.Value, roleId.Value, userId, warehouseId);
+                if (!removed)
                     return NotFound();
                 return NoContent();
             }
