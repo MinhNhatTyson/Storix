@@ -271,9 +271,7 @@ namespace Storix_BE.Repository.Implementation
         public async Task<User> UpdateProfileAsync(int userId, UpdateProfileDto dto)
         {
 
-            var user = await _context.Users
-                .Include(u => u.Id)
-                .FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
             {
