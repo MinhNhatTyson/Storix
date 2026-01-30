@@ -51,8 +51,17 @@ builder.Services.AddCors(opt =>
 {
    opt.AddPolicy("CorsPolicy", policy =>
     {
+        policy.AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .WithOrigins(
+                "https://localhost:5173",
+                "http://localhost:5173",
+                "https://127.0.0.1:5173",
+                "http://127.0.0.1:5173"
+            );
         //Set cors to accept Vite dev server
-        policy.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("https://localhost:5173");
+        //policy.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("https://localhost:5173");
     });
 });
 builder.Services.AddEndpointsApiExplorer();
