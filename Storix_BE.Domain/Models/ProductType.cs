@@ -13,4 +13,3 @@ public partial class ProductType
 
     public virtual ICollection<StorageZone> StorageZones { get; set; } = new List<StorageZone>();
 }
-

@@ -13,30 +13,29 @@ namespace Storix_BE.API.Configuration
     {
         public static void AddJwtAuthenticationService(this IServiceCollection services, IConfiguration configuration)
         {
-            // Base authentication with JWT bearer
-            var authBuilder = services.AddAuthentication(options =>
+            services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            });
-
-            // Optional Google authentication – only register if configured
-            var googleClientId = configuration["Authentication:Google:ClientId"];
-            var googleClientSecret = configuration["Authentication:Google:ClientSecret"];
-
-            if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
-            {
-                authBuilder.AddCookie()
-                           .AddGoogle(options =>
-                           {
-                               options.ClientId = googleClientId;
-                               options.ClientSecret = googleClientSecret;
-                               options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                           });
             }
+                ).AddCookie().AddGoogle(options =>
+                {
+                    var clientId = configuration["Authentication:Google:ClientId"];
+                    if(clientId == null)
+                    {
+                        throw new ArgumentNullException(nameof(clientId));
+                    }
+                    var clientSecret = configuration["Authentication:Google:ClientSecret"];
+                    if (clientSecret == null)
+                    {
+                        throw new ArgumentNullException(nameof(clientSecret));
+                    }
 
-            authBuilder.AddJwtBearer(options =>
+                    options.ClientId = clientId;
+                    options.ClientSecret = clientSecret;
+                    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                }).AddJwtBearer(options =>
                 {
                     options.RequireHttpsMetadata = false;
                     options.SaveToken = true;

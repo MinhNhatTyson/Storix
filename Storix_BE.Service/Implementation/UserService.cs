@@ -1,4 +1,5 @@
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
 using System;
@@ -12,10 +13,12 @@ namespace Storix_BE.Service.Implementation
 {
     public class UserService : IUserService
     {
+        private readonly IEmailService _emailService;
         private readonly IUserRepository _accRepository;
-        public UserService(IUserRepository accRepository)
+        public UserService(IUserRepository accRepository, IEmailService emailService)
         {
             _accRepository = accRepository;
+            _emailService = emailService;
         }
         public async Task<User> Login(string email, string password)
         {
@@ -26,7 +29,21 @@ namespace Storix_BE.Service.Implementation
         {
             return await _accRepository.LoginWithGoogleAsync(claimsPrincipal);
         }
-
+        public async Task<User> SignupNewAccount(
+            string fullName,
+            string email,
+            string phoneNumber,
+            string password,
+            string address,
+            string companyCode)
+        {
+            var user = await _accRepository.SignupNewAccount(fullName, email, phoneNumber, password, address, companyCode);
+            await _emailService.SendEmailAsync(email,
+                "Storix - New account confirmation",
+                "<h1>Thank you!</h1><p>you have successfuly registered a new Storix account with the following detail: </p>"
+            );
+            return user;            
+        }
         public async Task<User> RegisterCompanyAsync(
             string companyName,
             string? businessCode,
@@ -132,6 +149,11 @@ namespace Storix_BE.Service.Implementation
                 throw new InvalidOperationException("Cannot delete Company Administrator.");
             await _accRepository.RemoveAsync(user);
             return true;
+        }
+
+        public async Task<User> UpdateProfileAsync(int userId, UpdateProfileDto dto)
+        {
+            return await _accRepository.UpdateProfileAsync(userId, dto);
         }
     }
 }
