@@ -1,4 +1,5 @@
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,7 @@ namespace Storix_BE.Service.Interfaces
     {
         Task<User> Login(string email, string password);
         Task<User> LoginWithGoogleAsync(ClaimsPrincipal? claimsPrincipal);
+        Task<User> SignupNewAccount(string fullName, string email, string phoneNumber, string password, string address, string companyCode);
         Task<User> RegisterCompanyAsync(
             string companyName,
             string? businessCode,
@@ -28,6 +30,7 @@ namespace Storix_BE.Service.Interfaces
         Task<User> CreateUserAsync(int companyId, int callerRoleId, CreateUserRequest request);
         Task<User?> UpdateUserAsync(int userId, int companyId, int callerRoleId, UpdateUserRequest request);
         Task<bool> DeleteUserAsync(int userId, int companyId, int callerRoleId, int callerUserId);
+        Task<User> UpdateProfileAsync(int userId, UpdateProfileDto dto);
     }
 
     public sealed record CreateUserRequest(string FullName, string Email, string? Phone, string Password, string RoleName);
