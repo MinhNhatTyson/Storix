@@ -128,5 +128,52 @@ namespace Storix_BE.Service.Implementation
             if (string.IsNullOrWhiteSpace(sku)) throw new InvalidOperationException("SKU is required.");
             return await _repo.GetBySkuAsync(sku, companyId);
         }
+
+        public async Task<List<ProductType>> GetAllProductTypesAsync(int companyId)
+        {
+            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
+            return await _repo.GetAllProductTypesAsync(companyId);
+        }
+
+        public async Task<ProductType> CreateProductTypeAsync(CreateProductTypeRequest request)
+        {
+            if (request == null) throw new InvalidOperationException("Request cannot be null.");
+            var name = request.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product type name is required.");
+
+            var newType = new ProductType
+            {
+                Name = name
+            };
+
+            // repository will validate uniqueness and persist
+            return await _repo.CreateProductTypeAsync(newType);
+        }
+
+        public async Task<ProductType?> UpdateProductTypeAsync(int id, UpdateProductTypeRequest request)
+        {
+            if (id <= 0) throw new InvalidOperationException("Invalid product type id.");
+            if (request == null) throw new InvalidOperationException("Request cannot be null.");
+            var name = request.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product type name is required.");
+
+            var toUpdate = new ProductType
+            {
+                Id = id,
+                Name = name
+            };
+
+            var updatedCount = await _repo.UpdateProductType(toUpdate);
+            if (updatedCount <= 0) return null;
+
+            return new ProductType { Id = id, Name = name };
+        }
+
+        public async Task<bool> DeleteProductTypeAsync(int id)
+        {
+            if (id <= 0) throw new InvalidOperationException("Invalid product type id.");
+            var toDelete = new ProductType { Id = id };
+            return await _repo.RemoveProductTypeAsync(toDelete);
+        }
     }
 }

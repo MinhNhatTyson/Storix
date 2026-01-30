@@ -17,8 +17,15 @@ namespace Storix_BE.Service.Interfaces
         Task<bool> DeleteAsync(int id, int companyId);
 
         Task<List<Product>> GetByCompanyAsync(int companyId);
-    }
 
+
+        Task<List<ProductType>> GetAllProductTypesAsync(int companyId);
+        Task<ProductType> CreateProductTypeAsync(CreateProductTypeRequest request);
+        Task<ProductType?> UpdateProductTypeAsync(int id, UpdateProductTypeRequest request);
+        Task<bool> DeleteProductTypeAsync(int id);
+    }
+    public sealed record CreateProductTypeRequest(string Name);
+    public sealed record UpdateProductTypeRequest(string Name);
     public sealed record CreateProductRequest(
         int CompanyId,
         string? Sku,

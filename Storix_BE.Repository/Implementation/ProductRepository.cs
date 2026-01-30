@@ -59,7 +59,7 @@ namespace Storix_BE.Repository.Implementation
 
             if (product.TypeId.HasValue)
             {
-                var type = await _context.Types.FindAsync(product.TypeId.Value);
+                var type = await _context.ProductTypes.FindAsync(product.TypeId.Value);
                 if (type == null)
                     throw new InvalidOperationException($"Product type with id {product.TypeId.Value} not found.");
                 product.Type = type;
@@ -85,7 +85,7 @@ namespace Storix_BE.Repository.Implementation
             // If TypeId changed / provided, validate and attach
             if (product.TypeId.HasValue)
             {
-                var type = await _context.Types.FindAsync(product.TypeId.Value);
+                var type = await _context.ProductTypes.FindAsync(product.TypeId.Value);
                 if (type == null)
                     throw new InvalidOperationException($"Product type with id {product.TypeId.Value} not found.");
                 existing.TypeId = product.TypeId;
@@ -118,12 +118,87 @@ namespace Storix_BE.Repository.Implementation
             return true;
         }
 
-        public async Task<List<ProductType>> GetAllProductTypesAsync()
+        public async Task<List<ProductType>> GetAllProductTypesAsync(int companyId)
         {
-            return await _context.Types
+            var types = await _context.ProductTypes
                 .AsNoTracking()
+                .Where(t => t.Products.Any(p => p.CompanyId == companyId))
                 .OrderBy(t => t.Id)
                 .ToListAsync();
+            return types;
+        }
+
+        public async Task<ProductType> CreateProductTypeAsync(ProductType type)
+        {
+            if (type == null) throw new InvalidOperationException("Type cannot be null.");
+            var name = type.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product type name is required.");
+
+            var nameLower = name.ToLowerInvariant();
+            var exists = await _context.ProductTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Name != null && t.Name.ToLower() == nameLower);
+
+            if (exists != null)
+                throw new InvalidOperationException($"Product type with name '{name}' already exists.");
+
+            var newType = new ProductType
+            {
+                Name = name
+            };
+
+            _context.ProductTypes.Add(newType);
+            await _context.SaveChangesAsync();
+
+            // Return the created entity (detached)
+            return await _context.ProductTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == newType.Id) ?? newType;
+        }
+
+        public async Task<int> UpdateProductType(ProductType type)
+        {
+            if (type == null) throw new InvalidOperationException("Type cannot be null.");
+            var existing = await _context.ProductTypes.FirstOrDefaultAsync(t => t.Id == type.Id);
+            if (existing == null)
+                throw new InvalidOperationException($"Product type with id {type.Id} not found.");
+
+            var name = type.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product type name is required.");
+
+            var nameLower = name.ToLowerInvariant();
+            var collision = await _context.ProductTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id != type.Id && t.Name != null && t.Name.ToLower() == nameLower);
+
+            if (collision != null)
+                throw new InvalidOperationException($"Another product type with name '{name}' already exists.");
+
+            existing.Name = name;
+            _context.ProductTypes.Update(existing);
+            return await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> RemoveProductTypeAsync(ProductType type)
+        {
+            if (type == null) throw new InvalidOperationException("Type cannot be null.");
+            var existing = await _context.ProductTypes
+                .Include(t => t.Products)
+                .Include(t => t.StorageZones)
+                .FirstOrDefaultAsync(t => t.Id == type.Id);
+
+            if (existing == null) return false;
+
+            // Prevent deletion if referenced
+            if ((existing.Products != null && existing.Products.Any()) ||
+                (existing.StorageZones != null && existing.StorageZones.Any()))
+            {
+                throw new InvalidOperationException("Cannot remove product type because it is referenced by products or storage zones.");
+            }
+
+            _context.ProductTypes.Remove(existing);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

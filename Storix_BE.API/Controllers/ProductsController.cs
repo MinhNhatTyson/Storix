@@ -5,8 +5,7 @@ using Storix_BE.Service.Interfaces;
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
-    [Authorize]
+    [Route("api/[controller]")]    
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _service;
@@ -72,6 +71,64 @@ namespace Storix_BE.API.Controllers
             var deleted = await _service.DeleteAsync(companyId, id);
             if (!deleted) return NotFound();
             return NoContent();
+        }
+
+        [HttpGet("get-all-product-types/{companyId:int}")]
+        public async Task<IActionResult> GetAllProductTypes(int companyId)
+        {
+            try
+            {
+                var types = await _service.GetAllProductTypesAsync(companyId);
+                return Ok(types);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("create-new-product-type")]
+        public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductTypeRequest request)
+        {
+            try
+            {
+                var created = await _service.CreateProductTypeAsync(request);
+                return CreatedAtAction(nameof(GetAllProductTypes), new { companyId = 0 }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("update-type-name/{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] Storix_BE.Service.Interfaces.UpdateProductTypeRequest request)
+        {
+            try
+            {
+                var updated = await _service.UpdateProductTypeAsync(id, request);
+                if (updated == null) return NotFound();
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("delete-product-type/{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var removed = await _service.DeleteProductTypeAsync(id);
+                if (!removed) return NotFound();
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }
