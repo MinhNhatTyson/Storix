@@ -5,7 +5,8 @@ using Storix_BE.Service.Interfaces;
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]    
+    [Route("api/[controller]")]
+    [Authorize]
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _service;
@@ -15,12 +16,14 @@ namespace Storix_BE.API.Controllers
             _service = service;
         }
         [HttpGet("get-all/{companyId:int}")]
+        [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetAllProductsFromACompany(int companyid)
         {
             var items = await _service.GetByCompanyAsync(companyid);
             return Ok(items);
         }
         [HttpGet("get-by-id/{companyId:int}/{id:int}")]
+        [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetById(int companyId, int id)
         {
             var item = await _service.GetByIdAsync(companyId, id);
@@ -29,6 +32,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpGet("get-by-sku/{companyId:int}/sku/{sku}")]
+        [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetBySku(int companyId, string sku)
         {
             var item = await _service.GetBySkuAsync(sku, companyId);
@@ -37,6 +41,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPost("create")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductRequest request)
         {
             try
@@ -51,6 +56,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPut("update{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Update(int id, [FromBody] Storix_BE.Service.Interfaces.UpdateProductRequest request)
         {
             try
@@ -65,7 +71,8 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpDelete("company/{companyId:int}/{id:int}")]
+        [HttpDelete("delete/{companyId:int}/{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Delete(int companyId, int id)
         {
             var deleted = await _service.DeleteAsync(companyId, id);
@@ -74,6 +81,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpGet("get-all-product-types/{companyId:int}")]
+        [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetAllProductTypes(int companyId)
         {
             try
@@ -88,6 +96,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPost("create-new-product-type")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductTypeRequest request)
         {
             try
@@ -102,6 +111,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPut("update-type-name/{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Update(int id, [FromBody] Storix_BE.Service.Interfaces.UpdateProductTypeRequest request)
         {
             try
@@ -117,6 +127,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpDelete("delete-product-type/{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Delete(int id)
         {
             try
