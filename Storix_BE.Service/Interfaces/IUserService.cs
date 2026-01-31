@@ -28,7 +28,7 @@ namespace Storix_BE.Service.Interfaces
         Task<User?> GetByEmailAsync(string email);
         Task<List<User>> GetUsersByCompanyAsync(int companyId, int callerRoleId);
         Task<User> CreateUserAsync(int companyId, int callerRoleId, CreateUserRequest request);
-        Task<User?> UpdateUserAsync(int userId, int companyId, int callerRoleId, UpdateUserRequest request);
+        Task<User?> UpdateUserAsync(int userId, int companyId, int callerRoleId, int callerUserId, UpdateUserRequest request);
         Task<bool> DeleteUserAsync(int userId, int companyId, int callerRoleId, int callerUserId);
         Task<User> UpdateProfileAsync(int userId, UpdateProfileDto dto);
     }
