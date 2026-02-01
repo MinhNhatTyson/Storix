@@ -155,5 +155,20 @@ namespace Storix_BE.Service.Implementation
         {
             return await _accRepository.UpdateProfileAsync(userId, dto);
         }
+
+        public async Task<UserProfileDto?> GetUser(int userId)
+        {
+            if (userId <= 0) throw new InvalidOperationException("Invalid user id.");
+            var user = await _accRepository.GetUserByIdWithRoleAsync(userId);
+            if (user == null) return null;
+
+            return new UserProfileDto(
+                user.Id,
+                user.CompanyId,
+                user.FullName,
+                user.Email,
+                user.Phone,
+                user.Role?.Name);
+        }
     }
 }

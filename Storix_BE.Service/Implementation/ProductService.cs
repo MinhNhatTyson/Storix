@@ -1,5 +1,6 @@
 ﻿using Org.BouncyCastle.Asn1.Ocsp;
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.Implementation;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
 using System;
@@ -174,6 +175,14 @@ namespace Storix_BE.Service.Implementation
             if (id <= 0) throw new InvalidOperationException("Invalid product type id.");
             var toDelete = new ProductType { Id = id };
             return await _repo.RemoveProductTypeAsync(toDelete);
+        }
+        public async Task<int> GetCompanyIdByUserIdAsync(int userId)
+        {
+            if (userId <= 0) throw new InvalidOperationException("Invalid user id.");
+            var companyId = await _repo.GetCompanyIdByUserIdAsync(userId);
+            if (companyId == null || companyId <= 0)
+                throw new InvalidOperationException("User not found or not assigned to a company.");
+            return companyId.Value;
         }
     }
 }
