@@ -14,20 +14,7 @@ namespace Storix_BE.API.Controllers
         public ProductsController(IProductService service)
         {
             _service = service;
-        }
-        private int? GetCompanyIdFromToken()
-        {
-            var companyIdStr = User.FindFirst("CompanyId")?.Value;
-            if (string.IsNullOrEmpty(companyIdStr)) return null;
-            return int.TryParse(companyIdStr, out var id) ? id : null;
-        }
-
-        private int? GetRoleIdFromToken()
-        {
-            var roleIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-            if (string.IsNullOrEmpty(roleIdStr)) return null;
-            return int.TryParse(roleIdStr, out var id) ? id : null;
-        }
+        }        
         [HttpGet("get-all/{userId:int}")]
         [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetAllProductsFromACompany(int userId)
@@ -44,17 +31,7 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
 
-            if (companyId <= 0) return NotFound();
-
-            var callerCompanyId = GetCompanyIdFromToken();
-            var callerRoleId = GetRoleIdFromToken();
-
-            if (callerCompanyId == null) return Unauthorized();
-
-            // allow super admin (role id 1) to bypass same-company check
-            if (callerRoleId != 1 && callerCompanyId != companyId)
-                return Forbid();
-
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
             var items = await _service.GetByCompanyAsync(companyId);
             return Ok(items);
         }
@@ -75,14 +52,9 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
 
-            if (companyId <= 0) return NotFound();
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
 
-            var callerCompanyId = GetCompanyIdFromToken();
-            var callerRoleId = GetRoleIdFromToken();
-            if (callerCompanyId == null) return Unauthorized();
-            if (callerRoleId != 1 && callerCompanyId != companyId) return Forbid();
-
-            var item = await _service.GetByIdAsync(id, companyId); // note: id then companyId
+            var item = await _service.GetByIdAsync(id, companyId); 
             if (item == null) return NotFound();
             return Ok(item);
         }
@@ -104,12 +76,7 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
 
-            if (companyId <= 0) return NotFound();
-
-            var callerCompanyId = GetCompanyIdFromToken();
-            var callerRoleId = GetRoleIdFromToken();
-            if (callerCompanyId == null) return Unauthorized();
-            if (callerRoleId != 1 && callerCompanyId != companyId) return Forbid();
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
 
             var item = await _service.GetBySkuAsync(sku, companyId);
             if (item == null) return NotFound();
@@ -164,14 +131,9 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
 
-            if (companyId <= 0) return NotFound();
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
 
-            var callerCompanyId = GetCompanyIdFromToken();
-            var callerRoleId = GetRoleIdFromToken();
-            if (callerCompanyId == null) return Unauthorized();
-            if (callerRoleId != 1 && callerCompanyId != companyId) return Forbid();
-
-            var deleted = await _service.DeleteAsync(id, companyId); // note: id then companyId
+            var deleted = await _service.DeleteAsync(id, companyId); 
             if (!deleted) return NotFound();
             return NoContent();
         }
@@ -185,12 +147,7 @@ namespace Storix_BE.API.Controllers
             try
             {
                 var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
-                if (companyId <= 0) return NotFound();
-
-                var callerCompanyId = GetCompanyIdFromToken();
-                var callerRoleId = GetRoleIdFromToken();
-                if (callerCompanyId == null) return Unauthorized();
-                if (callerRoleId != 1 && callerCompanyId != companyId) return Forbid();
+                if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
 
                 var types = await _service.GetAllProductTypesAsync(companyId);
                 return Ok(types);

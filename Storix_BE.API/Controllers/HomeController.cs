@@ -1,15 +1,16 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
-using Storix_BE.Service.Interfaces;
 using Microsoft.IdentityModel.Tokens;
+using Storix_BE.Domain.Models;
+using Storix_BE.Service.Interfaces;
+using System.ComponentModel.Design;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Storix_BE.Domain.Models;
-using Microsoft.AspNetCore.Identity;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 
 namespace Storix_BE.API.Controllers
 {
@@ -35,7 +36,8 @@ namespace Storix_BE.API.Controllers
             return Ok(new
             {
                 Token = token,
-                RoleId = user.Result.RoleId
+                RoleId = user.Result.RoleId,
+                CompanyId = user.Result.CompanyId
             });
         }
         [HttpPost("Signup")]
