@@ -99,17 +99,27 @@ namespace Storix_BE.Service.Implementation
             return await _accRepository.GetByEmailAsync(email);
         }
 
-        public async Task<List<User>> GetUsersByCompanyAsync(int companyId, int callerRoleId)
+        public async Task<User?> GetUserByIdAsync(int userId)
         {
-            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            await EnsureCompanyAdministratorAsync(callerRoleId);
-            return await _accRepository.GetUsersByCompanyIdAsync(companyId);
+            return await _accRepository.GetUserByIdWithRoleAsync(userId);
         }
 
-        public async Task<User> CreateUserAsync(int companyId, int callerRoleId, CreateUserRequest request)
+        public async Task<List<User>> GetUsersForCallerAsync(int callerUserId, int callerRoleId)
         {
-            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
             await EnsureCompanyAdministratorAsync(callerRoleId);
+            var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
+            if (caller?.CompanyId == null)
+                throw new InvalidOperationException("Caller is not assigned to a company.");
+            return await _accRepository.GetUsersByCompanyIdAsync(caller.CompanyId.Value);
+        }
+
+        public async Task<User> CreateUserAsync(int callerUserId, int callerRoleId, CreateUserRequest request)
+        {
+            await EnsureCompanyAdministratorAsync(callerRoleId);
+            var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
+            if (caller?.CompanyId == null)
+                throw new InvalidOperationException("Caller is not assigned to a company.");
+            var companyId = caller.CompanyId.Value;
             if (request.RoleName != "Manager" && request.RoleName != "Staff")
                 throw new BusinessRuleException("BR-ACC-02", "Invalid role assignment.");
 
@@ -138,10 +148,13 @@ namespace Storix_BE.Service.Implementation
                 request.RoleName);
         }
 
-        public async Task<User?> UpdateUserAsync(int userId, int companyId, int callerRoleId, int callerUserId, UpdateUserRequest request)
+        public async Task<User?> UpdateUserAsync(int userId, int callerUserId, int callerRoleId, UpdateUserRequest request)
         {
-            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
             await EnsureCompanyAdministratorAsync(callerRoleId);
+            var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
+            if (caller?.CompanyId == null)
+                throw new InvalidOperationException("Caller is not assigned to a company.");
+            var companyId = caller.CompanyId.Value;
             var user = await _accRepository.GetUserByIdWithRoleAsync(userId);
             if (user == null || user.CompanyId != companyId)
             {
@@ -190,10 +203,13 @@ namespace Storix_BE.Service.Implementation
             return user;
         }
 
-        public async Task<bool> DeleteUserAsync(int userId, int companyId, int callerRoleId, int callerUserId)
+        public async Task<bool> DeleteUserAsync(int userId, int callerUserId, int callerRoleId)
         {
-            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
             await EnsureCompanyAdministratorAsync(callerRoleId);
+            var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
+            if (caller?.CompanyId == null)
+                throw new InvalidOperationException("Caller is not assigned to a company.");
+            var companyId = caller.CompanyId.Value;
             var user = await _accRepository.GetUserByIdWithRoleAsync(userId);
             if (user == null)
                 return false;
