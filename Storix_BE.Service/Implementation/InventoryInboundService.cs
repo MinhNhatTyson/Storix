@@ -18,7 +18,7 @@ namespace Storix_BE.Service.Implementation
             _repo = repo;
         }
 
-        public async Task<int> CreateInboundRequestAsync(CreateInboundRequestRequest request)
+        public async Task<InboundRequest> CreateInboundRequestAsync(CreateInboundRequestRequest request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (request.Items == null || !request.Items.Any())
@@ -49,7 +49,7 @@ namespace Storix_BE.Service.Implementation
             return createdId;
         }
 
-        public async Task<int> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status)
+        public async Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status)
         {
             if (ticketRequestId <= 0) throw new ArgumentException("Invalid ticket id.", nameof(ticketRequestId));
             if (approverId <= 0) throw new ArgumentException("Invalid approver id.", nameof(approverId));

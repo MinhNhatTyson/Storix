@@ -16,7 +16,7 @@ namespace Storix_BE.Repository.Implementation
             _context = context;
         }
 
-        public async Task<int> CreateInventoryInboundTicketRequest(InboundRequest request)
+        public async Task<InboundRequest> CreateInventoryInboundTicketRequest(InboundRequest request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
@@ -87,10 +87,10 @@ namespace Storix_BE.Repository.Implementation
                 throw;
             }
 
-            return request.Id;
+            return request;
         }
 
-        public async Task<int> UpdateInventoryInboundTicketRequestStatus(int ticketRequestId, int approverId, string status)
+        public async Task<InboundRequest> UpdateInventoryInboundTicketRequestStatus(int ticketRequestId, int approverId, string status)
         {
             if (string.IsNullOrWhiteSpace(status)) throw new ArgumentException("Status is required.", nameof(status));
 
@@ -109,7 +109,7 @@ namespace Storix_BE.Repository.Implementation
 
             await _context.SaveChangesAsync().ConfigureAwait(false);
 
-            return inbound.Id;
+            return inbound;
         }
     }
 }

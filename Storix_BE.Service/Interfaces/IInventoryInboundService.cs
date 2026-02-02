@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Storix_BE.Domain.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,9 +9,9 @@ namespace Storix_BE.Service.Interfaces
 {
     public interface IInventoryInboundService
     {
-        Task<int> CreateInboundRequestAsync(CreateInboundRequestRequest request);
+        Task<InboundRequest> CreateInboundRequestAsync(CreateInboundRequestRequest request);
 
-        Task<int> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status);
+        Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status);
     }
     public sealed record CreateInboundOrderItemRequest(int ProductId, int ExpectedQuantity);
 
