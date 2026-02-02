@@ -1,5 +1,6 @@
 ﻿using Org.BouncyCastle.Asn1.Ocsp;
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.Implementation;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
 using System;
@@ -138,6 +139,8 @@ namespace Storix_BE.Service.Implementation
         public async Task<ProductType> CreateProductTypeAsync(CreateProductTypeRequest request)
         {
             if (request == null) throw new InvalidOperationException("Request cannot be null.");
+            if (request.CompanyId <= 0) throw new InvalidOperationException("CompanyId must be a positive integer.");
+
             var name = request.Name?.Trim();
             if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product type name is required.");
 
@@ -146,8 +149,8 @@ namespace Storix_BE.Service.Implementation
                 Name = name
             };
 
-            // repository will validate uniqueness and persist
-            return await _repo.CreateProductTypeAsync(newType);
+            // repository will validate uniqueness for the provided company and persist
+            return await _repo.CreateProductTypeAsync(newType, request.CompanyId);
         }
 
         public async Task<ProductType?> UpdateProductTypeAsync(int id, UpdateProductTypeRequest request)
@@ -174,6 +177,14 @@ namespace Storix_BE.Service.Implementation
             if (id <= 0) throw new InvalidOperationException("Invalid product type id.");
             var toDelete = new ProductType { Id = id };
             return await _repo.RemoveProductTypeAsync(toDelete);
+        }
+        public async Task<int> GetCompanyIdByUserIdAsync(int userId)
+        {
+            if (userId <= 0) throw new InvalidOperationException("Invalid user id.");
+            var companyId = await _repo.GetCompanyIdByUserIdAsync(userId);
+            if (companyId == null || companyId <= 0)
+                throw new InvalidOperationException("User not found or not assigned to a company.");
+            return companyId.Value;
         }
     }
 }

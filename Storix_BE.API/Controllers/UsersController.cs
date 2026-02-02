@@ -50,6 +50,27 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpGet("get-user-profile/{userId}")]
+        public async Task<IActionResult> GetUserProfile(int userId)
+        {
+            try
+            {
+                var profile = await _userService.GetUser(userId);
+                if (profile == null) return NotFound();
+                return Ok(profile);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+        private int? GetCompanyIdFromToken()
+        {
+            var companyIdStr = User.FindFirst("CompanyId")?.Value;
+            if (string.IsNullOrEmpty(companyIdStr)) return null;
+            return int.TryParse(companyIdStr, out var id) ? id : null;
+        }
+
         private int? GetRoleIdFromToken()
         {
             var roleIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;

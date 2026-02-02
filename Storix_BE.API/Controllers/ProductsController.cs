@@ -5,7 +5,8 @@ using Storix_BE.Service.Interfaces;
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]    
+    [Route("api/[controller]")]
+    [Authorize]
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _service;
@@ -13,36 +14,83 @@ namespace Storix_BE.API.Controllers
         public ProductsController(IProductService service)
         {
             _service = service;
-        }
-        [HttpGet("get-all/{companyId:int}")]
-        public async Task<IActionResult> GetAllProductsFromACompany(int companyid)
+        }        
+        [HttpGet("get-all/{userId:int}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetAllProductsFromACompany(int userId)
         {
-            var items = await _service.GetByCompanyAsync(companyid);
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+
+            int companyId;
+            try
+            {
+                companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+            var items = await _service.GetByCompanyAsync(companyId);
             return Ok(items);
         }
-        [HttpGet("get-by-id/{companyId:int}/{id:int}")]
-        public async Task<IActionResult> GetById(int companyId, int id)
+        [HttpGet("get-by-id/{userId:int}/{id:int}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetById(int userId, int id)
         {
-            var item = await _service.GetByIdAsync(companyId, id);
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+            if (id <= 0) return BadRequest(new { message = "Invalid product id." });
+
+            int companyId;
+            try
+            {
+                companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+
+            var item = await _service.GetByIdAsync(id, companyId); 
             if (item == null) return NotFound();
             return Ok(item);
         }
 
-        [HttpGet("get-by-sku/{companyId:int}/sku/{sku}")]
-        public async Task<IActionResult> GetBySku(int companyId, string sku)
+        [HttpGet("get-by-sku/{userId:int}/sku/{sku}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetBySku(int userId, string sku)
         {
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+            if (string.IsNullOrWhiteSpace(sku)) return BadRequest(new { message = "SKU is required." });
+
+            int companyId;
+            try
+            {
+                companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+
             var item = await _service.GetBySkuAsync(sku, companyId);
             if (item == null) return NotFound();
             return Ok(item);
         }
 
         [HttpPost("create")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductRequest request)
         {
             try
             {
                 var product = await _service.CreateAsync(request);
-                return CreatedAtAction(nameof(GetById), new { companyId = product.CompanyId, id = product.Id }, product);
+                return Ok(product);
             }
             catch (InvalidOperationException ex)
             {
@@ -51,6 +99,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPut("update{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Update(int id, [FromBody] Storix_BE.Service.Interfaces.UpdateProductRequest request)
         {
             try
@@ -65,19 +114,41 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpDelete("company/{companyId:int}/{id:int}")]
-        public async Task<IActionResult> Delete(int companyId, int id)
+        [HttpDelete("delete/{userId:int}/{id:int}")]
+        [Authorize(Roles = "2")]
+        public async Task<IActionResult> Delete(int userId, int id)
         {
-            var deleted = await _service.DeleteAsync(companyId, id);
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+            if (id <= 0) return BadRequest(new { message = "Invalid product id." });
+
+            int companyId;
+            try
+            {
+                companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+
+            var deleted = await _service.DeleteAsync(id, companyId); 
             if (!deleted) return NotFound();
             return NoContent();
         }
 
-        [HttpGet("get-all-product-types/{companyId:int}")]
-        public async Task<IActionResult> GetAllProductTypes(int companyId)
+        [HttpGet("get-all-product-types/{userId:int}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetAllProductTypes(int userId)
         {
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+
             try
             {
+                var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+                if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+
                 var types = await _service.GetAllProductTypesAsync(companyId);
                 return Ok(types);
             }
@@ -87,13 +158,19 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpPost("create-new-product-type")]
-        public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductTypeRequest request)
+        [HttpPost("create-new-product-type/{userId:int}")]
+        [Authorize(Roles = "2")]
+        public async Task<IActionResult> Create(int userId, [FromBody] CreateProductTypeRequest request)
         {
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+            if (request == null) return BadRequest(new { message = "Request cannot be null." });
+
             try
             {
-                var created = await _service.CreateProductTypeAsync(request);
-                return CreatedAtAction(nameof(GetAllProductTypes), new { companyId = 0 }, created);
+                var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+                var companyScopedRequest = new CreateProductTypeRequest(companyId, request.Name);
+                var created = await _service.CreateProductTypeAsync(companyScopedRequest);
+                return CreatedAtAction(nameof(GetAllProductTypes), new { userId = userId }, created);
             }
             catch (InvalidOperationException ex)
             {
@@ -102,6 +179,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPut("update-type-name/{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Update(int id, [FromBody] Storix_BE.Service.Interfaces.UpdateProductTypeRequest request)
         {
             try
@@ -117,6 +195,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpDelete("delete-product-type/{id:int}")]
+        [Authorize(Roles = "2")]
         public async Task<IActionResult> Delete(int id)
         {
             try
