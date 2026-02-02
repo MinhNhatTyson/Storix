@@ -36,7 +36,7 @@ namespace Storix_BE.Service.Interfaces
     }
 
     public sealed record CreateUserRequest(string FullName, string Email, string? Phone, string Password, string RoleName);
-    public sealed record UpdateUserRequest(string? FullName, string? Email, string? Phone, string? Password, string? RoleName, string? Status);
+    public sealed record UpdateUserRequest(string? RoleName, string? Status);
     public sealed record UserProfileDto(
         int Id,
         int? CompanyId,
