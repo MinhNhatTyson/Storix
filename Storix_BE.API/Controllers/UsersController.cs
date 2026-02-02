@@ -13,7 +13,7 @@ namespace Storix_BE.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "2")]
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
