@@ -123,7 +123,7 @@ namespace Storix_BE.Repository.Implementation
         {
             var types = await _context.ProductTypes
                 .AsNoTracking()
-                .Where(t => t.Products.Any(p => p.CompanyId == companyId))
+                .Where(t => t.CompanyId == companyId)
                 .OrderBy(t => t.Id)
                 .ToListAsync();
             return types;
@@ -140,7 +140,7 @@ namespace Storix_BE.Repository.Implementation
             var existsForCompany = await _context.ProductTypes
                 .AsNoTracking()
                 .Where(t => t.Name != null && t.Name.ToLower() == nameLower)
-                .Where(t => t.Products.Any(p => p.CompanyId == companyId))
+                .Where(t => t.CompanyId == companyId)
                 .FirstOrDefaultAsync();
 
             if (existsForCompany != null)
@@ -148,7 +148,8 @@ namespace Storix_BE.Repository.Implementation
 
             var newType = new ProductType
             {
-                Name = name
+                Name = name,
+                CompanyId = companyId
             };
 
             _context.ProductTypes.Add(newType);

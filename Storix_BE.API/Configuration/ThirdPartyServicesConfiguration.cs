@@ -1,5 +1,6 @@
 ﻿
 using Microsoft.Extensions.Options;
+using Storix_BE.Service.Configuration;
 
 namespace CarServ.API.Configuration
 {
@@ -13,7 +14,11 @@ namespace CarServ.API.Configuration
 
         public static void ThirdPartyServicesCollection(this IServiceCollection services)
         {
-            
+            /*services.Configure<CloudinarySetting>(options =>
+            {
+                options.CloudinaryUrl = GetEnvironmentVariableOrThrow("CLOUDINARY_URL");
+            });
+            CloudinarySetting.Instance = services.BuildServiceProvider().GetService<IOptions<CloudinarySetting>>().Value;*/
         }
 
         private static string GetEnvironmentVariableOrThrow(string key)

@@ -158,19 +158,17 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpPost("create-new-product-type/{userId:int}")]
+        [HttpPost("create-new-product-type")]
         [Authorize(Roles = "2")]
-        public async Task<IActionResult> Create(int userId, [FromBody] CreateProductTypeRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateProductTypeRequest request)
         {
-            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
             if (request == null) return BadRequest(new { message = "Request cannot be null." });
 
             try
             {
-                var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
-                var companyScopedRequest = new CreateProductTypeRequest(companyId, request.Name);
+                var companyScopedRequest = new CreateProductTypeRequest(request.CompanyId, request.Name);
                 var created = await _service.CreateProductTypeAsync(companyScopedRequest);
-                return CreatedAtAction(nameof(GetAllProductTypes), new { userId = userId }, created);
+                return CreatedAtAction(nameof(GetAllProductTypes), new { userId = request.CompanyId }, created);
             }
             catch (InvalidOperationException ex)
             {

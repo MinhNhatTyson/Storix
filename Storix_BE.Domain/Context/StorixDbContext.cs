@@ -77,7 +77,7 @@ public partial class StorixDbContext : DbContext
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
     public virtual DbSet<WarehouseAssignment> WarehouseAssignments { get; set; }
-
+   
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ActivityLog>(entity =>
@@ -508,9 +508,14 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("nextval('types_id_seq'::regclass)")
                 .HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.Name)
                 .HasColumnType("character varying")
                 .HasColumnName("name");
+
+            entity.HasOne(d => d.Company).WithMany(p => p.ProductTypes)
+                .HasForeignKey(d => d.CompanyId)
+                .HasConstraintName("fk_product_types_company_id");
         });
 
         modelBuilder.Entity<Role>(entity =>
