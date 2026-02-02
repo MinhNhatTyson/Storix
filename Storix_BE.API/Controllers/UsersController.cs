@@ -29,6 +29,19 @@ namespace Storix_BE.API.Controllers
         {
             try
             {
+                var email = GetEmailFromToken();
+                if (string.IsNullOrEmpty(email))
+                    return Unauthorized();
+                var caller = await _userService.GetByEmailAsync(email);
+                if (caller?.CompanyId == null)
+                    return Unauthorized();
+
+                var targetUser = await _userService.GetUserByIdAsync(userId);
+                if (targetUser == null)
+                    return NotFound();
+                if (targetUser.CompanyId != caller.CompanyId.Value)
+                    return Unauthorized();
+
                 var updatedUser = await _userService.UpdateProfileAsync(userId, dto);
                 return Ok(updatedUser);
             }
@@ -86,7 +99,7 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var users = await _userService.GetUsersByCompanyAsync(caller.CompanyId.Value, roleId.Value);
+                var users = await _userService.GetUsersForCallerAsync(caller.Id, roleId.Value);
                 return Ok(users);
             }
             catch (UnauthorizedAccessException)
@@ -111,11 +124,12 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var users = await _userService.GetUsersByCompanyAsync(caller.CompanyId.Value, roleId.Value);
-                var user = users.FirstOrDefault(u => u.Id == id);
-                if (user == null)
+                var targetUser = await _userService.GetUserByIdAsync(id);
+                if (targetUser == null)
                     return NotFound();
-                return Ok(user);
+                if (targetUser.CompanyId != caller.CompanyId.Value)
+                    return Unauthorized();
+                return Ok(targetUser);
             }
             catch (UnauthorizedAccessException)
             {
@@ -139,7 +153,7 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var user = await _userService.CreateUserAsync(caller.CompanyId.Value, roleId.Value, request);
+                var user = await _userService.CreateUserAsync(caller.Id, roleId.Value, request);
                 return Ok(user);
             }
             catch (UnauthorizedAccessException)
@@ -168,7 +182,13 @@ namespace Storix_BE.API.Controllers
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null)
                     return Unauthorized();
-                var user = await _userService.UpdateUserAsync(id, caller.CompanyId.Value, roleId.Value, request);
+                var targetUser = await _userService.GetUserByIdAsync(id);
+                if (targetUser == null)
+                    return NotFound();
+                if (targetUser.CompanyId != caller.CompanyId.Value)
+                    return Unauthorized();
+
+                var user = await _userService.UpdateUserAsync(id, caller.Id, roleId.Value, request);
                 if (user == null)
                     return NotFound();
                 return Ok(user);
@@ -200,7 +220,13 @@ namespace Storix_BE.API.Controllers
                 if (caller?.CompanyId == null)
                     return Unauthorized();
 
-                var deleted = await _userService.DeleteUserAsync(id, caller.CompanyId.Value, roleId.Value, caller.Id);
+                var targetUser = await _userService.GetUserByIdAsync(id);
+                if (targetUser == null)
+                    return NotFound();
+                if (targetUser.CompanyId != caller.CompanyId.Value)
+                    return Unauthorized();
+
+                var deleted = await _userService.DeleteUserAsync(id, caller.Id, roleId.Value);
                 if (!deleted)
                     return NotFound();
                 return NoContent();
