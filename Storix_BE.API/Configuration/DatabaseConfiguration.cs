@@ -1,5 +1,4 @@
-﻿using Storix_BE.Domain.Models;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System;
 using Storix_BE.Domain.Context;
 
