@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Storix_BE.Domain.Exception;
+using Storix_BE.API.DTO;
+using Storix_BE.Domain.Models;
 using Storix_BE.Repository.DTO;
 using Storix_BE.Service.Interfaces;
+using System.Linq;
 using CreateUserRequest = Storix_BE.Service.Interfaces.CreateUserRequest;
 using UpdateUserRequest = Storix_BE.Service.Interfaces.UpdateUserRequest;
 
@@ -43,7 +47,7 @@ namespace Storix_BE.API.Controllers
                     return Unauthorized();
 
                 var updatedUser = await _userService.UpdateProfileAsync(userId, dto);
-                return Ok(updatedUser);
+                return Ok(MapUser(updatedUser));
             }
             catch (Exception ex)
             {
@@ -100,7 +104,7 @@ namespace Storix_BE.API.Controllers
                 if (caller?.CompanyId == null)
                     return Unauthorized();
                 var users = await _userService.GetUsersForCallerAsync(caller.Id, roleId.Value);
-                return Ok(users);
+                return Ok(users.Select(MapUser));
             }
             catch (UnauthorizedAccessException)
             {
@@ -129,7 +133,7 @@ namespace Storix_BE.API.Controllers
                     return NotFound();
                 if (targetUser.CompanyId != caller.CompanyId.Value)
                     return Unauthorized();
-                return Ok(targetUser);
+                return Ok(MapUser(targetUser));
             }
             catch (UnauthorizedAccessException)
             {
@@ -154,7 +158,7 @@ namespace Storix_BE.API.Controllers
                 if (caller?.CompanyId == null)
                     return Unauthorized();
                 var user = await _userService.CreateUserAsync(caller.Id, roleId.Value, request);
-                return Ok(user);
+                return Ok(MapUser(user));
             }
             catch (UnauthorizedAccessException)
             {
@@ -163,6 +167,10 @@ namespace Storix_BE.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (BusinessRuleException ex)
+            {
+                return BadRequest(new { code = ex.Code, message = ex.Message });
             }
         }
 
@@ -191,7 +199,7 @@ namespace Storix_BE.API.Controllers
                 var user = await _userService.UpdateUserAsync(id, caller.Id, roleId.Value, request);
                 if (user == null)
                     return NotFound();
-                return Ok(user);
+                return Ok(MapUser(user));
             }
             catch (UnauthorizedAccessException)
             {
@@ -200,6 +208,10 @@ namespace Storix_BE.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (BusinessRuleException ex)
+            {
+                return BadRequest(new { code = ex.Code, message = ex.Message });
             }
         }
 
@@ -239,6 +251,26 @@ namespace Storix_BE.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (BusinessRuleException ex)
+            {
+                return BadRequest(new { code = ex.Code, message = ex.Message });
+            }
+        }
+
+        private static UserResponseDto MapUser(User user)
+        {
+            return new UserResponseDto(
+                user.Id,
+                user.CompanyId,
+                user.FullName,
+                user.Email,
+                user.Phone,
+                user.RoleId,
+                user.Role?.Name,
+                user.Status,
+                user.CreatedAt,
+                user.UpdatedAt
+            );
         }
     }
 }
