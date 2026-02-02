@@ -10,6 +10,7 @@ namespace Storix_BE.Repository.Interfaces
 {
     public interface IInventoryInboundRepository
     {
-        Task CreateInventoryInboundTicketRequest();
+        Task<int> CreateInventoryInboundTicketRequest(InboundRequest request);
+        Task<int> UpdateInventoryInboundTicketRequestStatus(int ticketRequestId, int approverId, string status);
     }
 }

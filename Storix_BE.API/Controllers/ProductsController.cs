@@ -90,7 +90,7 @@ namespace Storix_BE.API.Controllers
             try
             {
                 var product = await _service.CreateAsync(request);
-                return CreatedAtAction(nameof(GetById), new { companyId = product.CompanyId, id = product.Id }, product);
+                return Ok(product);
             }
             catch (InvalidOperationException ex)
             {
@@ -158,14 +158,19 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpPost("create-new-product-type")]
+        [HttpPost("create-new-product-type/{userId:int}")]
         [Authorize(Roles = "2")]
-        public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductTypeRequest request)
+        public async Task<IActionResult> Create(int userId, [FromBody] CreateProductTypeRequest request)
         {
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+            if (request == null) return BadRequest(new { message = "Request cannot be null." });
+
             try
             {
-                var created = await _service.CreateProductTypeAsync(request);
-                return CreatedAtAction(nameof(GetAllProductTypes), new { companyId = 0 }, created);
+                var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+                var companyScopedRequest = new CreateProductTypeRequest(companyId, request.Name);
+                var created = await _service.CreateProductTypeAsync(companyScopedRequest);
+                return CreatedAtAction(nameof(GetAllProductTypes), new { userId = userId }, created);
             }
             catch (InvalidOperationException ex)
             {
