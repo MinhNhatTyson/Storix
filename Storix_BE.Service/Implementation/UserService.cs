@@ -73,10 +73,9 @@ namespace Storix_BE.Service.Implementation
                 password);
         }
 
-        private async Task EnsureCompanyAdministratorAsync(int callerRoleId)
+        private static void EnsureCompanyAdministratorAsync(int callerRoleId)
         {
-            var role = await _accRepository.GetRoleByIdAsync(callerRoleId);
-            if (role?.Name != "Company Administrator")
+            if (callerRoleId != 2)
                 throw new UnauthorizedAccessException("Only Company Administrator can manage accounts.");
         }
 
@@ -106,7 +105,7 @@ namespace Storix_BE.Service.Implementation
 
         public async Task<List<User>> GetUsersForCallerAsync(int callerUserId, int callerRoleId)
         {
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
             var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
             if (caller?.CompanyId == null)
                 throw new InvalidOperationException("Caller is not assigned to a company.");
@@ -115,7 +114,7 @@ namespace Storix_BE.Service.Implementation
 
         public async Task<User> CreateUserAsync(int callerUserId, int callerRoleId, CreateUserRequest request)
         {
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
             var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
             if (caller?.CompanyId == null)
                 throw new InvalidOperationException("Caller is not assigned to a company.");
@@ -150,7 +149,7 @@ namespace Storix_BE.Service.Implementation
 
         public async Task<User?> UpdateUserAsync(int userId, int callerUserId, int callerRoleId, UpdateUserRequest request)
         {
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
             var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
             if (caller?.CompanyId == null)
                 throw new InvalidOperationException("Caller is not assigned to a company.");
@@ -175,11 +174,7 @@ namespace Storix_BE.Service.Implementation
                 throw new InvalidOperationException("Cannot edit Super Admin.");
             if (currentRole?.Name == "Company Administrator")
                 throw new InvalidOperationException("Cannot edit Company Administrator.");
-            if (request.FullName != null) user.FullName = request.FullName;
-            if (request.Email != null) user.Email = request.Email;
-            if (request.Phone != null) user.Phone = request.Phone;
             if (request.Status != null) user.Status = request.Status;
-            if (request.Password != null) user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             if (request.RoleName != null)
             {
                 if (userId == callerUserId)
@@ -205,7 +200,7 @@ namespace Storix_BE.Service.Implementation
 
         public async Task<bool> DeleteUserAsync(int userId, int callerUserId, int callerRoleId)
         {
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
             var caller = await _accRepository.GetUserByIdWithRoleAsync(callerUserId);
             if (caller?.CompanyId == null)
                 throw new InvalidOperationException("Caller is not assigned to a company.");
@@ -232,6 +227,10 @@ namespace Storix_BE.Service.Implementation
                 if (adminCount <= 1)
                     throw new BusinessRuleException("BR-ACC-09", "Cannot delete the last Company Administrator.");
             }
+
+            var assignmentCount = await _assignmentService.CountAssignmentsByUserAsync(userId);
+            if (assignmentCount > 0 && !IsInactiveStatus(user.Status))
+                throw new BusinessRuleException("BR-ACC-11", "User is assigned to a warehouse.");
 
             var hasActiveOps = await _accRepository.HasActiveOperationsAsync(userId);
             if (hasActiveOps)

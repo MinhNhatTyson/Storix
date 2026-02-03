@@ -14,6 +14,7 @@ namespace Storix_BE.API.Configuration
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IInventoryInboundRepository, InventoryInboundRepository>();
             services.AddScoped<ISupplierRepository, SupplierRepository>();
+            services.AddScoped<IInventoryOutboundRepository, InventoryOutboundRepository>();
             return services;
         }
     }

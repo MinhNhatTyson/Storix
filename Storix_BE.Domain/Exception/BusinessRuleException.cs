@@ -2,12 +2,12 @@ using System;
 
 namespace Storix_BE.Domain.Exception
 {
-    public class BusinessRuleException : InvalidOperationException
+    public sealed class BusinessRuleException : System.Exception
     {
         public string Code { get; }
 
         public BusinessRuleException(string code, string message)
-            : base($"{code}: {message}")
+            : base(message)
         {
             Code = code;
         }

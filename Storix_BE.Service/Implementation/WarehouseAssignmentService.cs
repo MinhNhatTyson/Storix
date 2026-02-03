@@ -22,10 +22,9 @@ namespace Storix_BE.Service.Implementation
             _configuration = configuration;
         }
 
-        private async Task EnsureCompanyAdministratorAsync(int callerRoleId)
+        private static void EnsureCompanyAdministratorAsync(int callerRoleId)
         {
-            var role = await _userRepository.GetRoleByIdAsync(callerRoleId);
-            if (role?.Name != "Company Administrator")
+            if (callerRoleId != 2)
                 throw new UnauthorizedAccessException("Only Company Administrator can assign warehouses.");
         }
 
@@ -45,14 +44,14 @@ namespace Storix_BE.Service.Implementation
         public async Task<List<WarehouseAssignment>> GetAssignmentsByCompanyAsync(int companyId, int callerRoleId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
             return await _assignmentRepository.GetAssignmentsByCompanyIdAsync(companyId);
         }
 
         public async Task<List<WarehouseAssignment>> GetAssignmentsByWarehouseAsync(int companyId, int callerRoleId, int warehouseId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
 
             var warehouse = await _assignmentRepository.GetWarehouseByIdAsync(warehouseId);
             if (warehouse == null)
@@ -77,7 +76,7 @@ namespace Storix_BE.Service.Implementation
         public async Task<WarehouseAssignment> AssignWarehouseAsync(int companyId, int callerRoleId, AssignWarehouseRequest request)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
 
             var user = await _userRepository.GetUserByIdWithRoleAsync(request.UserId);
             if (user == null)
@@ -117,7 +116,7 @@ namespace Storix_BE.Service.Implementation
             {
                 UserId = request.UserId,
                 WarehouseId = request.WarehouseId,
-                RoleInWarehouse = request.RoleInWarehouse ?? userRole?.Name,
+                RoleInWarehouse = userRole?.Name,
                 AssignedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
             };
 
@@ -128,7 +127,7 @@ namespace Storix_BE.Service.Implementation
         public async Task<bool> UnassignWarehouseAsync(int companyId, int callerRoleId, int userId, int warehouseId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            await EnsureCompanyAdministratorAsync(callerRoleId);
+            EnsureCompanyAdministratorAsync(callerRoleId);
 
             var assignment = await _assignmentRepository.GetAssignmentAsync(userId, warehouseId);
             if (assignment == null)
@@ -154,6 +153,12 @@ namespace Storix_BE.Service.Implementation
 
             await _assignmentRepository.RemoveAssignmentAsync(assignment);
             return true;
+        }
+
+        public async Task<int> CountAssignmentsByUserAsync(int userId)
+        {
+            if (userId <= 0) throw new InvalidOperationException("Invalid user id.");
+            return await _assignmentRepository.CountAssignmentsByUserIdAsync(userId);
         }
 
         public async Task<int> UpdateRoleInAssignmentsAsync(int userId, string roleInWarehouse)
