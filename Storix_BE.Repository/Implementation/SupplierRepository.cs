@@ -1,10 +1,10 @@
-﻿using Storix_BE.Domain.Context;
+﻿using Microsoft.EntityFrameworkCore;
+using Storix_BE.Domain.Context;
 using Storix_BE.Domain.Models;
 using Storix_BE.Repository.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Storix_BE.Repository.Implementation
@@ -146,6 +146,18 @@ namespace Storix_BE.Repository.Implementation
             _context.Suppliers.Remove(supplier);
             await _context.SaveChangesAsync().ConfigureAwait(false);
             return true;
+        }
+
+        public async Task<int?> GetCompanyIdByUserIdAsync(int userId)
+        {
+            if (userId <= 0) return null;
+            var companyId = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.CompanyId)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+            return companyId;
         }
     }
 }

@@ -9,10 +9,30 @@ namespace Storix_BE.Service.Interfaces
 {
     public interface ISupplierService
     {
-        Task<List<Supplier>> GetAllSuppliersAsync(int companyId);
+        Task<List<Supplier>> GetByCompanyAsync(int companyId);
         Task<Supplier?> GetByIdAsync(int id, int companyId);
-        Task<Supplier> CreateAsync(Supplier supplier);
-        Task<Supplier?> UpdateAsync(Supplier supplier);
+        Task<Supplier> CreateAsync(CreateSupplierRequest request);
+        Task<Supplier?> UpdateAsync(int id, UpdateSupplierRequest request);
         Task<bool> DeleteAsync(int id, int companyId);
+
+        // helper to resolve company id from a user id (used by controllers that accept userId)
+        Task<int> GetCompanyIdByUserIdAsync(int userId);
     }
+
+    public sealed record CreateSupplierRequest(
+        int CompanyId,
+        string Name,
+        string? ContactPerson,
+        string? Email,
+        string? Phone,
+        string? Address);
+
+    public sealed record UpdateSupplierRequest(
+        int CompanyId,
+        string? Name,
+        string? ContactPerson,
+        string? Email,
+        string? Phone,
+        string? Address,
+        string? Status);
 }

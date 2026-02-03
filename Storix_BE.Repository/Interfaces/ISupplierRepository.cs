@@ -13,6 +13,7 @@ namespace Storix_BE.Repository.Interfaces
         Task<Supplier?> GetByIdAsync(int id, int companyId);
         Task<Supplier> CreateAsync(Supplier supplier);
         Task<Supplier?> UpdateAsync(Supplier supplier);
-        Task<bool> DeleteAsync(int id, int companyId);
+        Task<bool> DeleteAsync(int id, int companyId);        
+        Task<int?> GetCompanyIdByUserIdAsync(int userId);
     }
 }
