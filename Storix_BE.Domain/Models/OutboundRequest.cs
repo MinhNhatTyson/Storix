@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Storix_BE.Domain.Models;
@@ -16,6 +16,8 @@ public partial class OutboundRequest
     public string? Destination { get; set; }
 
     public string? Status { get; set; }
+
+    public double? TotalPrice { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 
