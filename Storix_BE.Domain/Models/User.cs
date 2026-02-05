@@ -43,6 +43,8 @@ public partial class User
 
     public virtual ICollection<OutboundRequest> OutboundRequestRequestedByNavigations { get; set; } = new List<OutboundRequest>();
 
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
     public virtual Role? Role { get; set; }
 
     public virtual ICollection<StockCountsTicket> StockCountsTickets { get; set; } = new List<StockCountsTicket>();
