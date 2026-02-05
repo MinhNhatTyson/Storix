@@ -16,7 +16,7 @@ namespace Storix_BE.Repository.Implementation
             _context = context;
         }
 
-        public async Task<InboundRequest> CreateInventoryInboundTicketRequest(InboundRequest request)
+        public async Task<InboundRequest> CreateInventoryInboundTicketRequest(InboundRequest request, IEnumerable<ProductPrice>? productPrices = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
@@ -72,12 +72,30 @@ namespace Storix_BE.Repository.Implementation
                 item.InboundRequest = request;
             }
 
-            // Persist within a transaction
+            // Persist within a transaction — also persist productPrices if provided
             await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
             try
             {
                 _context.InboundRequests.Add(request);
                 await _context.SaveChangesAsync().ConfigureAwait(false);
+
+                if (productPrices != null)
+                {
+                    var pricesList = productPrices.ToList();
+                    if (pricesList.Any())
+                    {
+                        // Ensure Date is set
+                        var nowDate = DateOnly.FromDateTime(DateTime.UtcNow);
+                        foreach (var p in pricesList)
+                        {
+                            if (p.Date == null)
+                                p.Date = nowDate;
+                        }
+
+                        _context.ProductPrices.AddRange(pricesList);
+                        await _context.SaveChangesAsync().ConfigureAwait(false);
+                    }
+                }
 
                 await tx.CommitAsync().ConfigureAwait(false);
             }

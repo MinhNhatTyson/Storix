@@ -41,6 +41,9 @@ namespace Storix_BE.Service.Interfaces
         int? RequestedBy,
         int? ApprovedBy,
         string? Status,
+        double? TotalPrice,
+        double? OrderDiscount,
+        double? FinalPrice,
         DateTime? CreatedAt,
         DateTime? ApprovedAt,
         IEnumerable<InboundOrderItemDto> InboundOrderItems,
@@ -62,7 +65,7 @@ namespace Storix_BE.Service.Interfaces
         SupplierDto? Supplier,
         WarehouseDto? Warehouse,
         UserDto? CreatedByUser);
-    public sealed record CreateInboundOrderItemRequest(int ProductId, int ExpectedQuantity);
+    public sealed record CreateInboundOrderItemRequest(int ProductId, int ExpectedQuantity, double Price, double LineDiscount);
 
     public sealed record CreateInboundRequestRequest(
         int? WarehouseId,
