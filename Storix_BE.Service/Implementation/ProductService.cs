@@ -100,11 +100,18 @@ namespace Storix_BE.Service.Implementation
                     throw new InvalidOperationException("SKU contains invalid characters. Only letters, digits, '-' and '_' are allowed.");
             }
 
-            // Get product scoped to company
+            
             var existing = await _repo.GetByIdAsync(id, request.CompanyId);
             if (existing == null) return null;
 
-            // SKU uniqueness check
+            string? imageUrl = null;
+
+            if (request.Image != null)
+            {
+                imageUrl = await _imageService.UploadProductImageAsync(request.Image);
+                existing.Image = imageUrl;
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Sku) && request.Sku != existing.Sku)
             {
                 var skuCollision = await _repo.GetBySkuAsync(request.Sku, request.CompanyId);

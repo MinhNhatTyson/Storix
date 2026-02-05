@@ -47,5 +47,6 @@ namespace Storix_BE.Service.Interfaces
         string? Category,
         string? Unit,
         double? Weight,
-        string? Description);
+        string? Description,
+        IFormFile? Image);
 }
