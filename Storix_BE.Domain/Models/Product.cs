@@ -37,6 +37,8 @@ public partial class Product
 
     public virtual ICollection<OutboundOrderItem> OutboundOrderItems { get; set; } = new List<OutboundOrderItem>();
 
+    public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
+
     public virtual ICollection<StockCountItem> StockCountItems { get; set; } = new List<StockCountItem>();
 
     public virtual ICollection<StorageForecast> StorageForecasts { get; set; } = new List<StorageForecast>();

@@ -31,6 +31,10 @@ namespace Storix_BE.Repository.Implementation
 
             if (user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
+                if(user.Status != "Active")
+                {
+                    throw new Exception("This account has been banned");
+                }
                 return user;
             }
             return null;

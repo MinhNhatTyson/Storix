@@ -25,6 +25,7 @@ namespace Storix_BE.Repository.Implementation
             return await _context.Products
                 .AsNoTracking()
                 .Include(p => p.Type)
+                .Include(p => p.ProductPrices)
                 .ToListAsync();
         }
 
@@ -33,6 +34,7 @@ namespace Storix_BE.Repository.Implementation
             return await _context.Products
                 .AsNoTracking()
                 .Include(p => p.Type)
+                .Include(p => p.ProductPrices)
                 .FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId);
         }
 
@@ -42,6 +44,7 @@ namespace Storix_BE.Repository.Implementation
             return await _context.Products
                 .AsNoTracking()
                 .Include(p => p.Type)
+                .Include(p => p.ProductPrices)
                 .FirstOrDefaultAsync(p => p.Sku == sku && p.CompanyId == companyId);
         }
 
@@ -50,6 +53,7 @@ namespace Storix_BE.Repository.Implementation
             return await _context.Products
                 .AsNoTracking()
                 .Include(p => p.Type)
+                .Include(p => p.ProductPrices)
                 .Where(p => p.CompanyId == companyId)
                 .ToListAsync();
         }
