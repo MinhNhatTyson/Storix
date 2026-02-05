@@ -72,8 +72,7 @@ namespace Storix_BE.Service.Implementation
             if (inboundOrderId <= 0) throw new ArgumentException("Invalid inboundOrderId.", nameof(inboundOrderId));
             if (items == null) throw new ArgumentNullException(nameof(items));
             if (!items.Any()) throw new InvalidOperationException("Items payload cannot be empty.");
-
-            // Map DTOs to domain InboundOrderItem objects (Id can be 0 for new items)
+            
             var domainItems = items.Select(i => new InboundOrderItem
             {
                 Id = i.Id,
@@ -84,5 +83,106 @@ namespace Storix_BE.Service.Implementation
 
             return await _repo.UpdateInboundOrderItemsAsync(inboundOrderId, domainItems);
         }
+        private static SupplierDto? MapSupplier(Supplier? s)
+        {
+            if (s == null) return null;
+            return new SupplierDto(s.Id, s.Name, s.Phone, s.Email);
+        }
+
+        private static WarehouseDto? MapWarehouse(Warehouse? w)
+        {
+            if (w == null) return null;
+            return new WarehouseDto(w.Id, w.Name, w.Address, w.Description, w.Width, w.Height, w.Length);
+        }
+
+        private static UserDto? MapUser(User? u)
+        {
+            if (u == null) return null;
+            return new UserDto(u.Id, u.FullName, u.Email, u.Phone);
+        }
+
+        private static InboundOrderItemDto MapInboundOrderItem(InboundOrderItem item)
+        {
+            if (item == null) return null!;
+            var p = item.Product;
+            return new InboundOrderItemDto(
+                item.Id,
+                item.ProductId,
+                p?.Sku,
+                p?.Name,
+                item.ExpectedQuantity,
+                p?.TypeId,
+                p?.Description);
+        }
+
+        private static InboundRequestDto MapInboundRequestToDto(InboundRequest r)
+        {
+            var items = (r.InboundOrderItems ?? Enumerable.Empty<InboundOrderItem>()).Select(MapInboundOrderItem).ToList();
+            return new InboundRequestDto(
+                r.Id,
+                r.WarehouseId,
+                r.SupplierId,
+                r.RequestedBy,
+                r.ApprovedBy,
+                r.Status,
+                r.CreatedAt,
+                r.ApprovedAt,
+                items,
+                MapSupplier(r.Supplier),
+                MapWarehouse(r.Warehouse),
+                MapUser(r.RequestedByNavigation),
+                MapUser(r.ApprovedByNavigation));
+        }
+
+        private static InboundOrderDto MapInboundOrderToDto(InboundOrder o)
+        {
+            var items = (o.InboundOrderItems ?? Enumerable.Empty<InboundOrderItem>()).Select(MapInboundOrderItem).ToList();
+            return new InboundOrderDto(
+                o.Id,
+                o.InboundRequestId,
+                o.WarehouseId,
+                o.SupplierId,
+                o.CreatedBy,
+                o.ReferenceCode,
+                o.Status,
+                o.CreatedAt,
+                items,
+                MapSupplier(o.Supplier),
+                MapWarehouse(o.Warehouse),
+                MapUser(o.CreatedByNavigation));
+        }
+
+        // --- New service methods returning DTOs and scoping by companyId ---
+        public async Task<List<InboundRequestDto>> GetAllInboundRequestsAsync(int companyId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            var items = await _repo.GetAllInboundRequestsAsync(companyId);
+            return items.Select(MapInboundRequestToDto).ToList();
+        }
+
+        public async Task<List<InboundOrderDto>> GetAllInboundOrdersAsync(int companyId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            var items = await _repo.GetAllInboundOrdersAsync(companyId);
+            return items.Select(MapInboundOrderToDto).ToList();
+        }
+
+        public async Task<InboundRequestDto> GetInboundRequestByIdAsync(int companyId, int id)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (id <= 0) throw new ArgumentException("Invalid inbound request id.", nameof(id));
+            var r = await _repo.GetInboundRequestByIdAsync(companyId, id);
+            return MapInboundRequestToDto(r);
+        }
+
+        public async Task<InboundOrderDto> GetInboundOrderByIdAsync(int companyId, int id)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (id <= 0) throw new ArgumentException("Invalid inbound order id.", nameof(id));
+            var o = await _repo.GetInboundOrderByIdAsync(companyId, id);
+            return MapInboundOrderToDto(o);
+        }
+
+
     }
 }
