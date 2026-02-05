@@ -1,6 +1,6 @@
 ﻿using Microsoft.OpenApi.Models;
 
-namespace CarServ.API.Configuration
+namespace Storix_BE.API.Configuration
 {
     public static class SwaggerConfiguration
     {

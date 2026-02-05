@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using Storix_BE.Domain.Models;
 
-namespace Storix_BE.Domain.Context;
+namespace Storix_BE.Domain.Models;
 
-public partial class StorixDbContext : DbContext
+public partial class StorixContext : DbContext
 {
-    public StorixDbContext()
+    public StorixContext()
     {
     }
 
-    public StorixDbContext(DbContextOptions<StorixDbContext> options)
+    public StorixContext(DbContextOptions<StorixContext> options)
         : base(options)
     {
     }
@@ -82,6 +81,9 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<WarehouseAssignment> WarehouseAssignments { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=Storix;Username=postgres;Password=12345;Include Error Detail=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

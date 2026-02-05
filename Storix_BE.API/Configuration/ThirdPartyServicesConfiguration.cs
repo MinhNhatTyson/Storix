@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using Storix_BE.Service.Configuration;
 
-namespace CarServ.API.Configuration
+namespace Storix_BE.API.Configuration
 {
     public static class ThirdPartyServicesConfiguration
     {

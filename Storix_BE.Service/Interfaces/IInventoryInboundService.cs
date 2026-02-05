@@ -31,6 +31,8 @@ namespace Storix_BE.Service.Interfaces
         int? ProductId,
         string? Sku,
         string? Name,
+        double? Price,
+        double? LineDiscount,
         int? ExpectedQuantity,
         int? TypeId,
         string? Description);
@@ -61,6 +63,9 @@ namespace Storix_BE.Service.Interfaces
         int? StaffId,
         string? ReferenceCode,
         string? Status,
+        double? TotalPrice,
+        double? OrderDiscount,
+        double? FinalPrice,
         DateTime? CreatedAt,
         IEnumerable<InboundOrderItemDto> InboundOrderItems,
         SupplierDto? Supplier,

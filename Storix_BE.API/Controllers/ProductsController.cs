@@ -84,8 +84,9 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPost("create")]
+        [Consumes("multipart/form-data")]
         [Authorize(Roles = "2")]
-        public async Task<IActionResult> Create([FromBody] Storix_BE.Service.Interfaces.CreateProductRequest request)
+        public async Task<IActionResult> Create([FromForm] CreateProductRequest request)
         {
             try
             {
@@ -97,6 +98,7 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
 
         [HttpPut("update{id:int}")]
         [Authorize(Roles = "2")]
