@@ -29,11 +29,24 @@ namespace Storix_BE.Service.Implementation
             if (invalid != null)
                 throw new InvalidOperationException("Each item must have a positive ProductId and ExpectedQuantity.");
 
+            // Validate prices and discounts on line items
+            var invalidPrice = request.Items.FirstOrDefault(i => double.IsNaN(i.Price) || i.Price < 0);
+            if (invalidPrice != null)
+                throw new InvalidOperationException("Each item must have a non-negative Price.");
+
+            var invalidLineDiscount = request.Items.FirstOrDefault(i => double.IsNaN(i.LineDiscount) || i.LineDiscount < 0 || i.LineDiscount > 1);
+            if (invalidLineDiscount != null)
+                throw new InvalidOperationException("Each item LineDiscount must be between 0 and 1 (fractional).");
+
+            if (request.OrderDiscount.HasValue && (double.IsNaN(request.OrderDiscount.Value) || request.OrderDiscount.Value < 0 || request.OrderDiscount.Value > 1))
+                throw new InvalidOperationException("OrderDiscount must be between 0 and 1 (fractional) when provided.");
+
             var inboundRequest = new InboundRequest
             {
                 WarehouseId = request.WarehouseId,
                 SupplierId = request.SupplierId,
-                RequestedBy = request.RequestedBy,                
+                RequestedBy = request.RequestedBy,
+                OrderDiscount = request.OrderDiscount,
             };
 
             foreach (var item in request.Items)
@@ -41,9 +54,37 @@ namespace Storix_BE.Service.Implementation
                 inboundRequest.InboundOrderItems.Add(new InboundOrderItem
                 {
                     ProductId = item.ProductId,
-                    ExpectedQuantity = item.ExpectedQuantity
+                    ExpectedQuantity = item.ExpectedQuantity,
+                    Price = item.Price,
+                    Discount = item.LineDiscount
                 });
-                
+            }
+
+            // Calculate total price from items (apply line-level discounts) and FinalPrice after order discount
+            double totalPrice = 0.0;
+            foreach (var item in request.Items)
+            {
+                var qty = item.ExpectedQuantity;
+                var price = item.Price;
+                var lineDiscount = item.LineDiscount; // expected fractional (e.g. 0.1 = 10%)
+
+                var effectiveUnitPrice = price * (1.0 - lineDiscount);
+                if (effectiveUnitPrice < 0) effectiveUnitPrice = 0; // safety
+
+                totalPrice += effectiveUnitPrice * qty;
+            }
+
+            inboundRequest.TotalPrice = totalPrice;
+
+            if (request.OrderDiscount.HasValue)
+            {
+                var final = totalPrice * (1.0 - request.OrderDiscount.Value);
+                if (final < 0) final = 0;
+                inboundRequest.FinalPrice = final;
+            }
+            else
+            {
+                inboundRequest.FinalPrice = totalPrice;
             }
 
             var nowDate = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -55,8 +96,8 @@ namespace Storix_BE.Service.Implementation
                 Date = nowDate
             }).ToList();
 
-            var createdId = await _repo.CreateInventoryInboundTicketRequest(inboundRequest, productPrices);
-            return createdId;
+            var createdRequest = await _repo.CreateInventoryInboundTicketRequest(inboundRequest, productPrices);
+            return createdRequest;
         }
 
         public async Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status)
@@ -69,12 +110,13 @@ namespace Storix_BE.Service.Implementation
             return id;
         }
 
-        public async Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy)
+        public async Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId)
         {
             if (inboundRequestId <= 0) throw new ArgumentException("Invalid inboundRequestId.", nameof(inboundRequestId));
             if (createdBy <= 0) throw new ArgumentException("Invalid createdBy.", nameof(createdBy));
+            // staffId may be null (optional)
 
-            return await _repo.CreateInboundOrderFromRequestAsync(inboundRequestId, createdBy);
+            return await _repo.CreateInboundOrderFromRequestAsync(inboundRequestId, createdBy, staffId);
         }
 
         public async Task<InboundOrder> UpdateTicketItemsAsync(int inboundOrderId, IEnumerable<UpdateInboundOrderItemRequest> items)
@@ -120,6 +162,8 @@ namespace Storix_BE.Service.Implementation
                 item.ProductId,
                 p?.Sku,
                 p?.Name,
+                item.Price,
+                item.Discount,
                 item.ExpectedQuantity,
                 p?.TypeId,
                 p?.Description);
@@ -156,13 +200,18 @@ namespace Storix_BE.Service.Implementation
                 o.WarehouseId,
                 o.SupplierId,
                 o.CreatedBy,
+                o.StaffId, 
                 o.ReferenceCode,
                 o.Status,
+                o.InboundRequest.TotalPrice,
+                o.InboundRequest.OrderDiscount,
+                o.InboundRequest.FinalPrice,
                 o.CreatedAt,
                 items,
                 MapSupplier(o.Supplier),
                 MapWarehouse(o.Warehouse),
-                MapUser(o.CreatedByNavigation));
+                MapUser(o.CreatedByNavigation),
+                MapUser(o.Staff)); 
         }
 
         // --- New service methods returning DTOs and scoping by companyId ---

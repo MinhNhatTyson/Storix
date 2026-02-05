@@ -28,24 +28,11 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpPut("update-profile/{userId}")]
-        [Authorize(Roles = "2")]
-        public async Task<IActionResult> UpdateProfile(int userId, [FromBody] UpdateProfileDto dto)
+        [Consumes("multipart/form-data")]        
+        public async Task<IActionResult> UpdateProfile(int userId, [FromForm] UpdateProfileDto dto)
         {
             try
             {
-                var email = GetEmailFromToken();
-                if (string.IsNullOrEmpty(email))
-                    return Unauthorized();
-                var caller = await _userService.GetByEmailAsync(email);
-                if (caller?.CompanyId == null)
-                    return Unauthorized();
-
-                var targetUser = await _userService.GetUserByIdAsync(userId);
-                if (targetUser == null)
-                    return NotFound();
-                if (targetUser.CompanyId != caller.CompanyId.Value)
-                    return Unauthorized();
-
                 var updatedUser = await _userService.UpdateProfileAsync(userId, dto);
                 return Ok(MapUser(updatedUser));
             }
