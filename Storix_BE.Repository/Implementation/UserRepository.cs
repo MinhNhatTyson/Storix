@@ -193,6 +193,8 @@ namespace Storix_BE.Repository.Implementation
         {
             return await _context.Users
                 .Include(u => u.Role)
+                .Include(u => u.WarehouseAssignments)
+                    .ThenInclude(a => a.Warehouse)
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
@@ -200,6 +202,8 @@ namespace Storix_BE.Repository.Implementation
         {
             return await _context.Users
                 .Include(u => u.Role)
+                .Include(u => u.WarehouseAssignments)
+                    .ThenInclude(a => a.Warehouse)
                 .Where(u => u.CompanyId == companyId)
                 .OrderBy(u => u.Id)
                 .ToListAsync();
@@ -294,6 +298,8 @@ namespace Storix_BE.Repository.Implementation
         {
             return await _context.Users
                 .Include(u => u.Role)
+                .Include(u => u.WarehouseAssignments)
+                    .ThenInclude(a => a.Warehouse)
                 .FirstOrDefaultAsync(u => u.Id == userId);
         }
 
