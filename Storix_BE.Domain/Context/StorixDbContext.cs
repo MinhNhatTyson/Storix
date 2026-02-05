@@ -926,6 +926,7 @@ public partial class StorixDbContext : DbContext
             entity.HasIndex(e => e.Email, "users_email_key").IsUnique();
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Avatar).HasColumnName("avatar");
             entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("timestamp without time zone")

@@ -25,6 +25,8 @@ public partial class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    public string? Avatar { get; set; }
+
     public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
 
     public virtual Company? Company { get; set; }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Storix_BE.Domain.Models;
 using Storix_BE.Repository.DTO;
 using System;
@@ -47,5 +48,13 @@ namespace Storix_BE.Service.Interfaces
         string? Email,
         string? Phone,
         string? RoleName,
-        string? Status);
+        string? Status,
+        string? Avatar);
+    public sealed record UpdateProfileDto(
+        int? CompanyId,
+        string? FullName,
+        string? Email,
+        string? Phone,
+        string? Password,
+        IFormFile? Avatar);
 }
