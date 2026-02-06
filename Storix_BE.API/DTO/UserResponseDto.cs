@@ -10,6 +10,8 @@ namespace Storix_BE.API.DTO
         string? Phone,
         int? RoleId,
         string? RoleName,
+        int? WarehouseId,
+        string? WarehouseName,
         string? Status,
         DateTime? CreatedAt,
         DateTime? UpdatedAt);
