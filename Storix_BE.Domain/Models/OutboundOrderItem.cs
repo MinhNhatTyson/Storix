@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Storix_BE.Domain.Models;
@@ -14,6 +14,8 @@ public partial class OutboundOrderItem
     public int? ProductId { get; set; }
 
     public int? Quantity { get; set; }
+    public double? Price { get; set; }
+
     public double? Price { get; set; }
 
     public virtual OutboundOrder? OutboundOrder { get; set; }
