@@ -20,7 +20,6 @@ namespace Storix_BE.Service.Interfaces
         Task<OutboundOrder> UpdateOutboundOrderStatusAsync(int outboundOrderId, int performedBy, string status);
 
         Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy);
-
         Task<List<OutboundRequestDto>> GetAllOutboundRequestsAsync(int companyId, int? warehouseId);
         Task<OutboundRequestDto> GetOutboundRequestByIdAsync(int companyId, int id);
         Task<List<OutboundOrderDto>> GetAllOutboundOrdersAsync(int companyId, int? warehouseId);
@@ -46,7 +45,6 @@ namespace Storix_BE.Service.Interfaces
     public sealed record UpdateOutboundOrderStatusRequest(int PerformedBy, string Status);
 
     public sealed record InventoryAvailabilityResponse(int ProductId, int AvailableQuantity);
-
     public sealed record OutboundWarehouseDto(int Id, string? Name);
 
     public sealed record OutboundUserDto(int Id, string? FullName, string? Email, string? Phone);

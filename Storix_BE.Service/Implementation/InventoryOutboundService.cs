@@ -102,7 +102,6 @@ namespace Storix_BE.Service.Implementation
 
             return await _repo.ConfirmOutboundOrderAsync(outboundOrderId, performedBy);
         }
-
         private static OutboundWarehouseDto? MapWarehouse(Warehouse? w)
         {
             if (w == null) return null;
