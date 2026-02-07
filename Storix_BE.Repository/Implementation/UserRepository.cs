@@ -410,7 +410,19 @@ namespace Storix_BE.Repository.Implementation
             await _context.SaveChangesAsync();
 
             return existedUser;
-        }        
+        }
 
+        public async Task<List<User>> GetUsersByWarehouseIdAsync(int warehouseId)
+        {            
+            if (warehouseId <= 0) throw new InvalidOperationException("Invalid warehouse id.");
+
+            return await _context.Users
+                .Include(u => u.Role)
+                .Include(u => u.WarehouseAssignments)
+                    .ThenInclude(a => a.Warehouse)
+                .Where(u => u.WarehouseAssignments.Any(a => a.WarehouseId == warehouseId))
+                .OrderBy(u => u.Id)
+                .ToListAsync();
+        }
     }
 }
