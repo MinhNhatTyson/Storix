@@ -99,6 +99,7 @@ namespace Storix_BE.API.Controllers
                 return Forbid();
             }
         }
+
         [HttpGet("get-users-by-warehouse/{warehouseId:int}")]
         public async Task<IActionResult> GetUsersByWarehouse(int warehouseId)
         {
