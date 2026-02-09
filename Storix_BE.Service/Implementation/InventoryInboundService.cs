@@ -229,24 +229,26 @@ namespace Storix_BE.Service.Implementation
         private static InboundOrderDto MapInboundOrderToDto(InboundOrder o)
         {
             var items = (o.InboundOrderItems ?? Enumerable.Empty<InboundOrderItem>()).Select(MapInboundOrderItem).ToList();
+            var inboundRequest = o.InboundRequest;
+
             return new InboundOrderDto(
                 o.Id,
                 o.InboundRequestId,
                 o.WarehouseId,
                 o.SupplierId,
                 o.CreatedBy,
-                o.StaffId, 
+                o.StaffId,
                 o.ReferenceCode,
                 o.Status,
-                o.InboundRequest.TotalPrice,
-                o.InboundRequest.OrderDiscount,
-                o.InboundRequest.FinalPrice,
+                inboundRequest?.TotalPrice,
+                inboundRequest?.OrderDiscount,
+                inboundRequest?.FinalPrice,
                 o.CreatedAt,
                 items,
                 MapSupplier(o.Supplier),
                 MapWarehouse(o.Warehouse),
                 MapUser(o.CreatedByNavigation),
-                MapUser(o.Staff)); 
+                MapUser(o.Staff));        
         }
 
         // --- New service methods returning DTOs and scoping by companyId ---
@@ -279,7 +281,14 @@ namespace Storix_BE.Service.Implementation
             var o = await _repo.GetInboundOrderByIdAsync(companyId, id);
             return MapInboundOrderToDto(o);
         }
+        public async Task<List<InboundOrderDto>> GetInboundOrdersByStaffAsync(int companyId, int staffId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (staffId <= 0) throw new ArgumentException("Invalid staff id.", nameof(staffId));
 
+            var items = await _repo.GetInboundOrdersByStaffAsync(companyId, staffId);
+            return items.Select(MapInboundOrderToDto).ToList();
+        }
 
     }
 }
