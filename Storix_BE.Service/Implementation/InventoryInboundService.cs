@@ -34,12 +34,12 @@ namespace Storix_BE.Service.Implementation
             if (invalidPrice != null)
                 throw new InvalidOperationException("Each item must have a non-negative Price.");
 
-            var invalidLineDiscount = request.Items.FirstOrDefault(i => double.IsNaN(i.LineDiscount) || i.LineDiscount < 0);
+            var invalidLineDiscount = request.Items.FirstOrDefault(i => double.IsNaN(i.LineDiscount) || i.LineDiscount < 0 || i.LineDiscount > 100);
             if (invalidLineDiscount != null)
-                throw new InvalidOperationException("Each item LineDiscount must not less than 0");
+                throw new InvalidOperationException("Each item LineDiscount be in the interval of 0 - 100 ");
 
-            if (request.OrderDiscount.HasValue && (double.IsNaN(request.OrderDiscount.Value) || request.OrderDiscount.Value < 0))
-                throw new InvalidOperationException("OrderDiscount must not less than 0.");
+            if (request.OrderDiscount.HasValue && (double.IsNaN(request.OrderDiscount.Value) || request.OrderDiscount.Value < 0 || request.OrderDiscount.Value > 100))
+                throw new InvalidOperationException("OrderDiscount must be in the range of 0 - 100");
 
             if (string.IsNullOrWhiteSpace(request.Note))
                 throw new InvalidOperationException("Note is required.");
