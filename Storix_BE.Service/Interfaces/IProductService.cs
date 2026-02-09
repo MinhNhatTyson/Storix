@@ -49,4 +49,15 @@ namespace Storix_BE.Service.Interfaces
         double? Weight,
         string? Description,
         IFormFile? Image);
+    public sealed record ProductResponseDTO(
+        int ProductId,
+        string? Sku,
+        string? Name,
+        int? TypeId,
+        string? Category,
+        string? Unit,
+        double? Weight,
+        string? Description,
+        double? LatestPrice,
+        IFormFile? Image);
 }
