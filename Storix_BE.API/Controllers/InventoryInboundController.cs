@@ -226,6 +226,65 @@ namespace Storix_BE.API.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
+        [HttpGet("export/requests/csv/{companyId:int}")]
+        public async Task<IActionResult> ExportInboundRequestsCsv(int companyId)
+        {
+            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+
+            var items = await _service.GetInboundRequestsForExportAsync(companyId);
+            var fileBytes = _service.ExportInboundRequestsToCsv(items);
+
+            return File(
+                fileBytes,
+                "text/csv",
+                $"inbound_requests_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
+            );
+        }
+
+        [HttpGet("export/requests/excel/{companyId:int}")]
+        public async Task<IActionResult> ExportInboundRequestsExcel(int companyId)
+        {
+            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+
+            var items = await _service.GetInboundRequestsForExportAsync(companyId);
+            var fileBytes = _service.ExportInboundRequestsToExcel(items);
+
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"inbound_requests_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
+            );
+        }
+
+        [HttpGet("export/tickets/csv/{companyId:int}")]
+        public async Task<IActionResult> ExportInboundOrdersCsv(int companyId)
+        {
+            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+
+            var items = await _service.GetInboundOrdersForExportAsync(companyId);
+            var fileBytes = _service.ExportInboundOrdersToCsv(items);
+
+            return File(
+                fileBytes,
+                "text/csv",
+                $"inbound_tickets_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
+            );
+        }
+
+        [HttpGet("export/tickets/excel/{companyId:int}")]
+        public async Task<IActionResult> ExportInboundOrdersExcel(int companyId)
+        {
+            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+
+            var items = await _service.GetInboundOrdersForExportAsync(companyId);
+            var fileBytes = _service.ExportInboundOrdersToExcel(items);
+
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"inbound_tickets_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
+            );
+        }
     }
     public sealed record CreateTicketFromRequestRequest(int CreatedBy, int StaffId);
 }

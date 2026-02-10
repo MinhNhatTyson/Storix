@@ -1,8 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ClosedXML.Excel;
+using CsvHelper;
+using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Context;
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using Storix_BE.Repository.Interfaces;
 using System;
+using System.Globalization;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Storix_BE.Repository.Implementation
@@ -330,6 +335,177 @@ namespace Storix_BE.Repository.Implementation
                 .OrderByDescending(o => o.CreatedAt);
 
             return await query.ToListAsync().ConfigureAwait(false);
+        }
+        public async Task<List<InboundRequestExportDto>> GetInboundRequestsForExportAsync(int companyId)
+        {
+            return await _context.InboundRequests
+                .Include(r => r.Warehouse)
+                .Include(r => r.Supplier)
+                .Include(r => r.RequestedByNavigation)
+                .Include(r => r.ApprovedByNavigation)
+                .Select(r => new InboundRequestExportDto
+                {
+                    Id = r.Id,
+                    Code = r.Code,
+                    Warehouse = r.Warehouse != null ? r.Warehouse.Name : null,
+                    Supplier = r.Supplier != null ? r.Supplier.Name : null,
+                    RequestedBy = r.RequestedByNavigation != null ? r.RequestedByNavigation.FullName : null,
+                    ApprovedBy = r.ApprovedByNavigation != null ? r.ApprovedByNavigation.FullName : null,
+                    Status = r.Status,
+                    TotalPrice = r.TotalPrice,
+                    OrderDiscount = r.OrderDiscount,
+                    FinalPrice = r.FinalPrice,
+                    ExpectedDate = r.ExpectedDate,
+                    Note = r.Note,
+                    CreatedAt = r.CreatedAt,
+                    ApprovedAt = r.ApprovedAt,
+                    ItemCount = r.InboundOrderItems != null ? r.InboundOrderItems.Count : 0
+                })
+                .Where(dto => dto.RequestedBy != null) // keep same scoping as other methods (RequestedByNavigation.CompanyId)
+                .ToListAsync()
+                .ConfigureAwait(false);
+        }
+
+        public async Task<List<InboundOrderExportDto>> GetInboundOrdersForExportAsync(int companyId)
+        {
+            return await _context.InboundOrders
+                .Include(o => o.Warehouse)
+                .Include(o => o.Supplier)
+                .Include(o => o.CreatedByNavigation)
+                .Include(o => o.Staff)
+                .Include(o => o.InboundRequest)
+                .Select(o => new InboundOrderExportDto
+                {
+                    Id = o.Id,
+                    ReferenceCode = o.ReferenceCode,
+                    Warehouse = o.Warehouse != null ? o.Warehouse.Name : null,
+                    Supplier = o.Supplier != null ? o.Supplier.Name : null,
+                    CreatedBy = o.CreatedByNavigation != null ? o.CreatedByNavigation.FullName : null,
+                    Staff = o.Staff != null ? o.Staff.FullName : null,
+                    Status = o.Status,
+                    TotalPrice = o.InboundRequest != null ? o.InboundRequest.FinalPrice : null,
+                    CreatedAt = o.CreatedAt,
+                    ItemCount = o.InboundOrderItems != null ? o.InboundOrderItems.Count : 0
+                })
+                .Where(dto => dto.CreatedBy != null) // keep same scoping as other methods (CreatedByNavigation.CompanyId)
+                .ToListAsync()
+                .ConfigureAwait(false);
+        }
+
+        public byte[] ExportInboundRequestsToCsv(List<InboundRequestExportDto> requests)
+        {
+            using var memoryStream = new MemoryStream();
+            using (var writer = new StreamWriter(memoryStream, new UTF8Encoding(true)))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(requests);
+                writer.Flush();
+            }
+
+            return memoryStream.ToArray();
+        }
+
+        public byte[] ExportInboundRequestsToExcel(List<InboundRequestExportDto> requests)
+        {
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("InboundRequests");
+
+            worksheet.Cell(1, 1).Value = "ID";
+            worksheet.Cell(1, 2).Value = "Code";
+            worksheet.Cell(1, 3).Value = "Warehouse";
+            worksheet.Cell(1, 4).Value = "Supplier";
+            worksheet.Cell(1, 5).Value = "Requested By";
+            worksheet.Cell(1, 6).Value = "Approved By";
+            worksheet.Cell(1, 7).Value = "Status";
+            worksheet.Cell(1, 8).Value = "Total Price";
+            worksheet.Cell(1, 9).Value = "Order Discount";
+            worksheet.Cell(1, 10).Value = "Final Price";
+            worksheet.Cell(1, 11).Value = "Expected Date";
+            worksheet.Cell(1, 12).Value = "Note";
+            worksheet.Cell(1, 13).Value = "Created At";
+            worksheet.Cell(1, 14).Value = "Approved At";
+            worksheet.Cell(1, 15).Value = "Item Count";
+
+            for (int i = 0; i < requests.Count; i++)
+            {
+                var row = i + 2;
+                var r = requests[i];
+
+                worksheet.Cell(row, 1).Value = r.Id;
+                worksheet.Cell(row, 2).Value = r.Code;
+                worksheet.Cell(row, 3).Value = r.Warehouse;
+                worksheet.Cell(row, 4).Value = r.Supplier;
+                worksheet.Cell(row, 5).Value = r.RequestedBy;
+                worksheet.Cell(row, 6).Value = r.ApprovedBy;
+                worksheet.Cell(row, 7).Value = r.Status;
+                worksheet.Cell(row, 8).Value = r.TotalPrice;
+                worksheet.Cell(row, 9).Value = r.OrderDiscount;
+                worksheet.Cell(row, 10).Value = r.FinalPrice;
+                worksheet.Cell(row, 11).Value = r.ExpectedDate?.ToString();
+                worksheet.Cell(row, 12).Value = r.Note;
+                worksheet.Cell(row, 13).Value = r.CreatedAt;
+                worksheet.Cell(row, 14).Value = r.ApprovedAt;
+                worksheet.Cell(row, 15).Value = r.ItemCount;
+            }
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return stream.ToArray();
+        }
+
+        public byte[] ExportInboundOrdersToCsv(List<InboundOrderExportDto> orders)
+        {
+            using var memoryStream = new MemoryStream();
+            using (var writer = new StreamWriter(memoryStream, new UTF8Encoding(true)))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(orders);
+                writer.Flush();
+            }
+
+            return memoryStream.ToArray();
+        }
+
+        public byte[] ExportInboundOrdersToExcel(List<InboundOrderExportDto> orders)
+        {
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("InboundOrders");
+
+            worksheet.Cell(1, 1).Value = "ID";
+            worksheet.Cell(1, 2).Value = "Reference Code";
+            worksheet.Cell(1, 3).Value = "Warehouse";
+            worksheet.Cell(1, 4).Value = "Supplier";
+            worksheet.Cell(1, 5).Value = "Created By";
+            worksheet.Cell(1, 6).Value = "Staff";
+            worksheet.Cell(1, 7).Value = "Status";
+            worksheet.Cell(1, 8).Value = "Total Price";
+            worksheet.Cell(1, 9).Value = "Created At";
+            worksheet.Cell(1, 10).Value = "Item Count";
+
+            for (int i = 0; i < orders.Count; i++)
+            {
+                var row = i + 2;
+                var o = orders[i];
+
+                worksheet.Cell(row, 1).Value = o.Id;
+                worksheet.Cell(row, 2).Value = o.ReferenceCode;
+                worksheet.Cell(row, 3).Value = o.Warehouse;
+                worksheet.Cell(row, 4).Value = o.Supplier;
+                worksheet.Cell(row, 5).Value = o.CreatedBy;
+                worksheet.Cell(row, 6).Value = o.Staff;
+                worksheet.Cell(row, 7).Value = o.Status;
+                worksheet.Cell(row, 8).Value = o.TotalPrice;
+                worksheet.Cell(row, 9).Value = o.CreatedAt;
+                worksheet.Cell(row, 10).Value = o.ItemCount;
+            }
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return stream.ToArray();
         }
     }
 }

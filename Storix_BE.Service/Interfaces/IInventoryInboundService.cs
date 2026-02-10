@@ -1,4 +1,5 @@
 ﻿using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,6 +22,12 @@ namespace Storix_BE.Service.Interfaces
         Task<InboundRequestDto> GetInboundRequestByIdAsync(int companyId, int id);
         Task<InboundOrderDto> GetInboundOrderByIdAsync(int companyId, int id);
         Task<List<InboundOrderDto>> GetInboundOrdersByStaffAsync(int companyId, int staffId);
+        Task<List<InboundRequestExportDto>> GetInboundRequestsForExportAsync(int companyId);
+        Task<List<InboundOrderExportDto>> GetInboundOrdersForExportAsync(int companyId);
+        byte[] ExportInboundRequestsToCsv(List<InboundRequestExportDto> requests);
+        byte[] ExportInboundRequestsToExcel(List<InboundRequestExportDto> requests);
+        byte[] ExportInboundOrdersToCsv(List<InboundOrderExportDto> orders);
+        byte[] ExportInboundOrdersToExcel(List<InboundOrderExportDto> orders);
     }    
     public sealed record SupplierDto(int Id, string? Name, string? Phone, string? Email);
 
