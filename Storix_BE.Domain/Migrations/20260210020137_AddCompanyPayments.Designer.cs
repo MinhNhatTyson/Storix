@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Storix_BE.Domain.Context;
@@ -11,9 +12,11 @@ using Storix_BE.Domain.Context;
 namespace Storix_BE.Domain.Migrations
 {
     [DbContext(typeof(StorixDbContext))]
-    partial class StorixDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260210020137_AddCompanyPayments")]
+    partial class AddCompanyPayments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
