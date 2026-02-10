@@ -16,7 +16,6 @@ public partial class OutboundRequest
     public string? Destination { get; set; }
 
     public string? Status { get; set; }
-    public double? TotalPrice { get; set; }
 
     public double? TotalPrice { get; set; }
 
