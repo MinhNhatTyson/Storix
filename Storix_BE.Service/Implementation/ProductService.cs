@@ -1,5 +1,6 @@
 ﻿using Org.BouncyCastle.Asn1.Ocsp;
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using Storix_BE.Repository.Implementation;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
@@ -202,6 +203,20 @@ namespace Storix_BE.Service.Implementation
             if (companyId == null || companyId <= 0)
                 throw new InvalidOperationException("User not found or not assigned to a company.");
             return companyId.Value;
+        }
+
+        public async Task<List<ProductExportDto>> GetProductsForExportAsync()
+        {
+            return await _repo.GetProductsForExportAsync();
+        }
+
+        public byte[] ExportProductsToCsv(List<ProductExportDto> products)
+        {
+            return _repo.ExportProductsToCsv(products);
+        }
+        public byte[] ExportProductsToExcel(List<ProductExportDto> products)
+        {
+            return _repo.ExportProductsToExcel(products);
         }
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Storix_BE.Service.Implementation;
 using Storix_BE.Service.Interfaces;
 
 namespace Storix_BE.API.Controllers
@@ -217,5 +218,31 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [HttpGet("export/csv")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> ExportProductsCsv()
+        {
+            var products = await _service.GetProductsForExportAsync();
+            var fileBytes = _service.ExportProductsToCsv(products);
+
+            return File(
+                fileBytes,
+                "text/csv",
+                $"products_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
+            );
+        }
+        [HttpGet("export/excel")]
+        public async Task<IActionResult> ExportProductsExcel()
+        {
+            var products = await _service.GetProductsForExportAsync();
+            var fileBytes = _service.ExportProductsToExcel(products);
+
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"products_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
+            );
+        }
+
     }
 }

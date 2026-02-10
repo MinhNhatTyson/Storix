@@ -1,4 +1,5 @@
 ﻿using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,9 @@ namespace Storix_BE.Repository.Interfaces
         Task<bool> RemoveProductTypeAsync(ProductType type);
 
         Task<int?> GetCompanyIdByUserIdAsync(int userId);
+        Task<List<ProductExportDto>> GetProductsForExportAsync();
+        byte[] ExportProductsToCsv(List<ProductExportDto> products);
+        byte[] ExportProductsToExcel(List<ProductExportDto> products);
 
     }
 }
