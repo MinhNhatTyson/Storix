@@ -18,7 +18,7 @@ namespace Storix_BE.Repository.DTO
         public string? Note { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? ApprovedAt { get; set; }
-        public int ItemCount { get; set; }
+        public List<InboundOrderItemExportDto> Items { get; set; } = new();
     }
     public class InboundOrderExportDto
     {
@@ -31,7 +31,7 @@ namespace Storix_BE.Repository.DTO
         public string? Status { get; set; }
         public double? TotalPrice { get; set; }
         public DateTime? CreatedAt { get; set; }
-        public int ItemCount { get; set; }
+        public List<InboundOrderItemExportDto> Items { get; set; } = new();
     }
     public class InboundOrderItemExportDto
     {

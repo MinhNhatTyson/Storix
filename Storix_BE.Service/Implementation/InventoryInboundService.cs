@@ -290,36 +290,40 @@ namespace Storix_BE.Service.Implementation
             var items = await _repo.GetInboundOrdersByStaffAsync(companyId, staffId);
             return items.Select(MapInboundOrderToDto).ToList();
         }
-        public async Task<List<InboundRequestExportDto>> GetInboundRequestsForExportAsync(int companyId)
+        public async Task<InboundRequestExportDto> GetInboundRequestForExportAsync(int inboundRequestId)
         {
-            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
-            return await _repo.GetInboundRequestsForExportAsync(companyId);
+            if (inboundRequestId <= 0) throw new ArgumentException("Invalid inbound request id.", nameof(inboundRequestId));
+            var dto = await _repo.GetInboundRequestForExportAsync(inboundRequestId);
+            if (dto == null) throw new InvalidOperationException($"InboundRequest with id {inboundRequestId} not found.");
+            return dto;
         }
 
-        public async Task<List<InboundOrderExportDto>> GetInboundOrdersForExportAsync(int companyId)
+        public async Task<InboundOrderExportDto> GetInboundOrderForExportAsync(int inboundOrderId)
         {
-            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
-            return await _repo.GetInboundOrdersForExportAsync(companyId);
+            if (inboundOrderId <= 0) throw new ArgumentException("Invalid inbound order id.", nameof(inboundOrderId));
+            var dto = await _repo.GetInboundOrderForExportAsync(inboundOrderId);
+            if (dto == null) throw new InvalidOperationException($"InboundOrder with id {inboundOrderId} not found.");
+            return dto;
         }
 
-        public byte[] ExportInboundRequestsToCsv(List<InboundRequestExportDto> requests)
+        public byte[] ExportInboundRequestToCsv(InboundRequestExportDto request)
         {
-            return _repo.ExportInboundRequestsToCsv(requests);
+            return _repo.ExportInboundRequestToCsv(request);
         }
 
-        public byte[] ExportInboundRequestsToExcel(List<InboundRequestExportDto> requests)
+        public byte[] ExportInboundRequestToExcel(InboundRequestExportDto request)
         {
-            return _repo.ExportInboundRequestsToExcel(requests);
+            return _repo.ExportInboundRequestToExcel(request);
         }
 
-        public byte[] ExportInboundOrdersToCsv(List<InboundOrderExportDto> orders)
+        public byte[] ExportInboundOrderToCsv(InboundOrderExportDto order)
         {
-            return _repo.ExportInboundOrdersToCsv(orders);
+            return _repo.ExportInboundOrderToCsv(order);
         }
 
-        public byte[] ExportInboundOrdersToExcel(List<InboundOrderExportDto> orders)
+        public byte[] ExportInboundOrderToExcel(InboundOrderExportDto order)
         {
-            return _repo.ExportInboundOrdersToExcel(orders);
+            return _repo.ExportInboundOrderToExcel(order);
         }
     }
 }

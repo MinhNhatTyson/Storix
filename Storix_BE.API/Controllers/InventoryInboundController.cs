@@ -226,64 +226,124 @@ namespace Storix_BE.API.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
-        [HttpGet("export/requests/csv/{companyId:int}")]
-        public async Task<IActionResult> ExportInboundRequestsCsv(int companyId)
+        [HttpGet("export/inbound-request/{requestId:int}/csv")]
+        public async Task<IActionResult> ExportInboundRequestCsv(int requestId)
         {
-            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+            if (requestId <= 0) return BadRequest(new { message = "Invalid inbound request id." });
 
-            var items = await _service.GetInboundRequestsForExportAsync(companyId);
-            var fileBytes = _service.ExportInboundRequestsToCsv(items);
+            try
+            {
+                var dto = await _service.GetInboundRequestForExportAsync(requestId);
+                var fileBytes = _service.ExportInboundRequestToCsv(dto);
 
-            return File(
-                fileBytes,
-                "text/csv",
-                $"inbound_requests_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
-            );
+                return File(
+                    fileBytes,
+                    "text/csv",
+                    $"inbound_request_{requestId}_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
+                );
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
 
-        [HttpGet("export/requests/excel/{companyId:int}")]
-        public async Task<IActionResult> ExportInboundRequestsExcel(int companyId)
+        [HttpGet("export/inbound-request/{requestId:int}/excel")]
+        public async Task<IActionResult> ExportInboundRequestExcel(int requestId)
         {
-            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+            if (requestId <= 0) return BadRequest(new { message = "Invalid inbound request id." });
 
-            var items = await _service.GetInboundRequestsForExportAsync(companyId);
-            var fileBytes = _service.ExportInboundRequestsToExcel(items);
+            try
+            {
+                var dto = await _service.GetInboundRequestForExportAsync(requestId);
+                var fileBytes = _service.ExportInboundRequestToExcel(dto);
 
-            return File(
-                fileBytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"inbound_requests_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
-            );
+                return File(
+                    fileBytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"inbound_request_{requestId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
+                );
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
 
-        [HttpGet("export/tickets/csv/{companyId:int}")]
-        public async Task<IActionResult> ExportInboundOrdersCsv(int companyId)
+        [HttpGet("export/inbound-ticket/{orderId:int}/csv")]
+        public async Task<IActionResult> ExportInboundOrderCsv(int orderId)
         {
-            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+            if (orderId <= 0) return BadRequest(new { message = "Invalid inbound order id." });
 
-            var items = await _service.GetInboundOrdersForExportAsync(companyId);
-            var fileBytes = _service.ExportInboundOrdersToCsv(items);
+            try
+            {
+                var dto = await _service.GetInboundOrderForExportAsync(orderId);
+                var fileBytes = _service.ExportInboundOrderToCsv(dto);
 
-            return File(
-                fileBytes,
-                "text/csv",
-                $"inbound_tickets_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
-            );
+                return File(
+                    fileBytes,
+                    "text/csv",
+                    $"inbound_ticket_{orderId}_{DateTime.UtcNow:yyyyMMddHHmmss}.csv"
+                );
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
 
-        [HttpGet("export/tickets/excel/{companyId:int}")]
-        public async Task<IActionResult> ExportInboundOrdersExcel(int companyId)
+        [HttpGet("export/inbound-ticket/{orderId:int}/excel")]
+        public async Task<IActionResult> ExportInboundOrderExcel(int orderId)
         {
-            if (companyId <= 0) return BadRequest(new { message = "Invalid company id." });
+            if (orderId <= 0) return BadRequest(new { message = "Invalid inbound order id." });
 
-            var items = await _service.GetInboundOrdersForExportAsync(companyId);
-            var fileBytes = _service.ExportInboundOrdersToExcel(items);
+            try
+            {
+                var dto = await _service.GetInboundOrderForExportAsync(orderId);
+                var fileBytes = _service.ExportInboundOrderToExcel(dto);
 
-            return File(
-                fileBytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"inbound_tickets_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
-            );
+                return File(
+                    fileBytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"inbound_ticket_{orderId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx"
+                );
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
     }
     public sealed record CreateTicketFromRequestRequest(int CreatedBy, int StaffId);
