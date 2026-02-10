@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Storix_BE.Service.Interfaces;
 
 namespace Storix_BE.API.Controllers

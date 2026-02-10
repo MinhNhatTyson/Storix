@@ -20,6 +20,8 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<Company> Companies { get; set; }
 
+    public virtual DbSet<CompanyPayment> CompanyPayments { get; set; }
+
     public virtual DbSet<InboundOrder> InboundOrders { get; set; }
 
     public virtual DbSet<InboundOrderItem> InboundOrderItems { get; set; }
@@ -143,6 +145,39 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
+        });
+
+        modelBuilder.Entity<CompanyPayment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("company_payments_pkey");
+
+            entity.ToTable("company_payments");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Amount)
+                .HasColumnType("numeric")
+                .HasColumnName("amount");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.PaidAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("paid_at");
+            entity.Property(e => e.PaymentMethod)
+                .HasColumnType("character varying")
+                .HasColumnName("payment_method");
+            entity.Property(e => e.PaymentStatus)
+                .HasColumnType("character varying")
+                .HasColumnName("payment_status");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Company).WithMany(p => p.CompanyPayments)
+                .HasForeignKey(d => d.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_company_payments_company_id");
         });
 
         modelBuilder.Entity<InboundOrder>(entity =>
