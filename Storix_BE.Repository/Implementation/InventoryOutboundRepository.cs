@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Storix_BE.Domain.Context;
 using Storix_BE.Domain.Models;
 using Storix_BE.Repository.Interfaces;
@@ -12,10 +13,12 @@ namespace Storix_BE.Repository.Implementation
     public class InventoryOutboundRepository : IInventoryOutboundRepository
     {
         private readonly StorixDbContext _context;
+        private readonly ILogger<InventoryOutboundRepository> _logger;
 
-        public InventoryOutboundRepository(StorixDbContext context)
+        public InventoryOutboundRepository(StorixDbContext context, ILogger<InventoryOutboundRepository> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<OutboundRequest> CreateOutboundRequestAsync(OutboundRequest request)
@@ -315,8 +318,31 @@ namespace Storix_BE.Repository.Implementation
             if (!IsStaffTransitionAllowed(current, normalized))
                 throw new InvalidOperationException($"Invalid status transition from '{current}' to '{normalized}'.");
 
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            var oldStatus = order.Status;
+
             order.Status = normalized;
             await _context.SaveChangesAsync().ConfigureAwait(false);
+
+            // Best-effort audit logging: outbound status update should not fail
+            // just because the history table is missing/misconfigured.
+            try
+            {
+                _context.OutboundOrderStatusHistories.Add(new OutboundOrderStatusHistory
+                {
+                    OutboundOrderId = order.Id,
+                    OldStatus = oldStatus,
+                    NewStatus = normalized,
+                    ChangedByUserId = performedBy,
+                    ChangedAt = now
+                });
+
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to write outbound status history. OutboundOrderId={OutboundOrderId}", order.Id);
+            }
 
             return order;
         }
@@ -338,6 +364,9 @@ namespace Storix_BE.Repository.Implementation
 
             await EnsureManagerPerformerAsync(performedBy).ConfigureAwait(false);
 
+            if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Outbound order is already completed.");
+
             var productIds = order.OutboundOrderItems
                 .Where(i => i.ProductId.HasValue)
                 .Select(i => i.ProductId!.Value)
@@ -351,6 +380,7 @@ namespace Storix_BE.Repository.Implementation
 
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
+            var oldStatusForHistory = order.Status;
             try
             {
                 foreach (var item in order.OutboundOrderItems)
@@ -390,6 +420,25 @@ namespace Storix_BE.Repository.Implementation
             {
                 await tx.RollbackAsync().ConfigureAwait(false);
                 throw;
+            }
+
+            // Best-effort audit logging after successful confirm.
+            try
+            {
+                _context.OutboundOrderStatusHistories.Add(new OutboundOrderStatusHistory
+                {
+                    OutboundOrderId = order.Id,
+                    OldStatus = oldStatusForHistory,
+                    NewStatus = "Completed",
+                    ChangedByUserId = performedBy,
+                    ChangedAt = now
+                });
+
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to write outbound completion history. OutboundOrderId={OutboundOrderId}", order.Id);
             }
 
             return order;

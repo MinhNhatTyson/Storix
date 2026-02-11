@@ -56,6 +56,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+    // Pretty JSON in dev for easier debugging; keep compact in production.
+    options.JsonSerializerOptions.WriteIndented = builder.Environment.IsDevelopment();
 });
 builder.Services.AddCors(opt =>
 {
