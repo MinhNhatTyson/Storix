@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Storix_BE.Domain.Context;
@@ -11,9 +12,11 @@ using Storix_BE.Domain.Context;
 namespace Storix_BE.Domain.Migrations
 {
     [DbContext(typeof(StorixDbContext))]
-    partial class StorixDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260210040752_AddReportingAndOutboundHistory")]
+    partial class AddReportingAndOutboundHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -581,6 +584,10 @@ namespace Storix_BE.Domain.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("completed_at");
+
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
@@ -911,7 +918,52 @@ namespace Storix_BE.Domain.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
-            modelBuilder.Entity("Storix_BE.Domain.Models.Report", b =>
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportArtifact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentHash")
+                        .HasColumnType("character varying")
+                        .HasColumnName("content_hash");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FileName")
+                        .HasColumnType("character varying")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Format")
+                        .HasColumnType("character varying")
+                        .HasColumnName("format");
+
+                    b.Property<int>("ReportRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("report_request_id");
+
+                    b.Property<string>("StorageProvider")
+                        .HasColumnType("character varying")
+                        .HasColumnName("storage_provider");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("text")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("report_artifacts_pkey");
+
+                    b.HasIndex("ReportRequestId");
+
+                    b.ToTable("report_artifacts", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportRequest", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -936,10 +988,6 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by_user_id");
 
-                    b.Property<string>("DataJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("data_json");
-
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("text")
                         .HasColumnName("error_message");
@@ -948,37 +996,13 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("parameters_json");
 
-                    b.Property<string>("PdfContentHash")
-                        .HasColumnType("character varying")
-                        .HasColumnName("pdf_content_hash");
-
-                    b.Property<string>("PdfFileName")
-                        .HasColumnType("character varying")
-                        .HasColumnName("pdf_file_name");
-
-                    b.Property<DateTime?>("PdfGeneratedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("pdf_generated_at");
-
-                    b.Property<string>("PdfUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("pdf_url");
-
                     b.Property<string>("ReportType")
                         .HasColumnType("character varying")
                         .HasColumnName("report_type");
 
-                    b.Property<string>("SchemaVersion")
-                        .HasColumnType("character varying")
-                        .HasColumnName("schema_version");
-
                     b.Property<string>("Status")
                         .HasColumnType("character varying")
                         .HasColumnName("status");
-
-                    b.Property<string>("SummaryJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("summary_json");
 
                     b.Property<DateTime?>("TimeFrom")
                         .HasColumnType("timestamp without time zone")
@@ -993,7 +1017,7 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnName("warehouse_id");
 
                     b.HasKey("Id")
-                        .HasName("reports_pkey");
+                        .HasName("report_requests_pkey");
 
                     b.HasIndex("CompanyId");
 
@@ -1001,7 +1025,45 @@ namespace Storix_BE.Domain.Migrations
 
                     b.HasIndex("WarehouseId");
 
-                    b.ToTable("reports", (string)null);
+                    b.ToTable("report_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data_json");
+
+                    b.Property<DateTime?>("GeneratedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<int>("ReportRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("report_request_id");
+
+                    b.Property<string>("SchemaVersion")
+                        .HasColumnType("character varying")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("SummaryJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("summary_json");
+
+                    b.HasKey("Id")
+                        .HasName("report_results_pkey");
+
+                    b.HasIndex("ReportRequestId")
+                        .IsUnique();
+
+                    b.ToTable("report_results", (string)null);
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Role", b =>
@@ -1700,7 +1762,7 @@ namespace Storix_BE.Domain.Migrations
             modelBuilder.Entity("Storix_BE.Domain.Models.AiRun", b =>
                 {
                     b.HasOne("Storix_BE.Domain.Models.Company", "Company")
-                        .WithMany()
+                        .WithMany("AiRuns")
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -1957,12 +2019,12 @@ namespace Storix_BE.Domain.Migrations
             modelBuilder.Entity("Storix_BE.Domain.Models.OutboundOrderStatusHistory", b =>
                 {
                     b.HasOne("Storix_BE.Domain.Models.User", "ChangedByUser")
-                        .WithMany()
+                        .WithMany("OutboundOrderStatusHistories")
                         .HasForeignKey("ChangedByUserId")
                         .HasConstraintName("fk_outbound_order_status_history_changed_by_user_id");
 
                     b.HasOne("Storix_BE.Domain.Models.OutboundOrder", "OutboundOrder")
-                        .WithMany()
+                        .WithMany("OutboundOrderStatusHistories")
                         .HasForeignKey("OutboundOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -2044,26 +2106,56 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Storix_BE.Domain.Models.Report", b =>
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportArtifact", b =>
                 {
-                    b.HasOne("Storix_BE.Domain.Models.Company", null)
-                        .WithMany()
+                    b.HasOne("Storix_BE.Domain.Models.ReportRequest", "ReportRequest")
+                        .WithMany("ReportArtifacts")
+                        .HasForeignKey("ReportRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_artifacts_report_request_id");
+
+                    b.Navigation("ReportRequest");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportRequest", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Company", "Company")
+                        .WithMany("ReportRequests")
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_reports_company_id");
+                        .HasConstraintName("fk_report_requests_company_id");
 
-                    b.HasOne("Storix_BE.Domain.Models.User", null)
-                        .WithMany()
+                    b.HasOne("Storix_BE.Domain.Models.User", "CreatedByUser")
+                        .WithMany("ReportRequestsCreated")
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_reports_created_by_user_id");
+                        .HasConstraintName("fk_report_requests_created_by_user_id");
 
-                    b.HasOne("Storix_BE.Domain.Models.Warehouse", null)
+                    b.HasOne("Storix_BE.Domain.Models.Warehouse", "Warehouse")
                         .WithMany()
                         .HasForeignKey("WarehouseId")
-                        .HasConstraintName("fk_reports_warehouse_id");
+                        .HasConstraintName("fk_report_requests_warehouse_id");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportResult", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.ReportRequest", "ReportRequest")
+                        .WithOne("ReportResult")
+                        .HasForeignKey("Storix_BE.Domain.Models.ReportResult", "ReportRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_report_results_report_request_id");
+
+                    b.Navigation("ReportRequest");
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Shelf", b =>
@@ -2295,11 +2387,15 @@ namespace Storix_BE.Domain.Migrations
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Company", b =>
                 {
+                    b.Navigation("AiRuns");
+
                     b.Navigation("CompanyPayments");
 
                     b.Navigation("ProductTypes");
 
                     b.Navigation("Products");
+
+                    b.Navigation("ReportRequests");
 
                     b.Navigation("Suppliers");
 
@@ -2344,6 +2440,8 @@ namespace Storix_BE.Domain.Migrations
             modelBuilder.Entity("Storix_BE.Domain.Models.OutboundOrder", b =>
                 {
                     b.Navigation("OutboundOrderItems");
+
+                    b.Navigation("OutboundOrderStatusHistories");
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.OutboundRequest", b =>
@@ -2375,6 +2473,13 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("Products");
 
                     b.Navigation("StorageZones");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ReportRequest", b =>
+                {
+                    b.Navigation("ReportArtifacts");
+
+                    b.Navigation("ReportResult");
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Role", b =>
@@ -2436,11 +2541,15 @@ namespace Storix_BE.Domain.Migrations
 
                     b.Navigation("OutboundOrderStaffs");
 
+                    b.Navigation("OutboundOrderStatusHistories");
+
                     b.Navigation("OutboundRequestApprovedByNavigations");
 
                     b.Navigation("OutboundRequestRequestedByNavigations");
 
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("ReportRequestsCreated");
 
                     b.Navigation("StockCountsTickets");
 

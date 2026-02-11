@@ -18,6 +18,8 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<ActivityLog> ActivityLogs { get; set; }
 
+    public virtual DbSet<AiRun> AiRuns { get; set; }
+
     public virtual DbSet<Company> Companies { get; set; }
 
     public virtual DbSet<CompanyPayment> CompanyPayments { get; set; }
@@ -41,6 +43,8 @@ public partial class StorixDbContext : DbContext
     public virtual DbSet<OutboundOrder> OutboundOrders { get; set; }
 
     public virtual DbSet<OutboundOrderItem> OutboundOrderItems { get; set; }
+
+    public virtual DbSet<OutboundOrderStatusHistory> OutboundOrderStatusHistories { get; set; }
 
     public virtual DbSet<OutboundRequest> OutboundRequests { get; set; }
 
@@ -84,6 +88,8 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<WarehouseAssignment> WarehouseAssignments { get; set; }
 
+    public virtual DbSet<Report> Reports { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -109,6 +115,36 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.ActivityLogs)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("fk_activity_logs_user_id");
+        });
+
+        modelBuilder.Entity<AiRun>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("ai_runs_pkey");
+
+            entity.ToTable("ai_runs");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.FinishedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("finished_at");
+            entity.Property(e => e.ModelVersion)
+                .HasColumnType("character varying")
+                .HasColumnName("model_version");
+            entity.Property(e => e.ParametersJson)
+                .HasColumnType("jsonb")
+                .HasColumnName("parameters_json");
+            entity.Property(e => e.StartedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("started_at");
+            entity.Property(e => e.Type)
+                .HasColumnType("character varying")
+                .HasColumnName("type");
+
+            entity.HasOne(d => d.Company).WithMany()
+                .HasForeignKey(d => d.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_ai_runs_company_id");
         });
 
         modelBuilder.Entity<Company>(entity =>
@@ -452,6 +488,35 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.OutboundOrders)
                 .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("fk_outbound_orders_warehouse_id");
+        });
+
+        modelBuilder.Entity<OutboundOrderStatusHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("outbound_order_status_history_pkey");
+
+            entity.ToTable("outbound_order_status_history");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ChangedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("changed_at");
+            entity.Property(e => e.ChangedByUserId).HasColumnName("changed_by_user_id");
+            entity.Property(e => e.NewStatus)
+                .HasColumnType("character varying")
+                .HasColumnName("new_status");
+            entity.Property(e => e.OldStatus)
+                .HasColumnType("character varying")
+                .HasColumnName("old_status");
+            entity.Property(e => e.OutboundOrderId).HasColumnName("outbound_order_id");
+
+            entity.HasOne(d => d.OutboundOrder).WithMany()
+                .HasForeignKey(d => d.OutboundOrderId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_outbound_order_status_history_outbound_order_id");
+
+            entity.HasOne(d => d.ChangedByUser).WithMany()
+                .HasForeignKey(d => d.ChangedByUserId)
+                .HasConstraintName("fk_outbound_order_status_history_changed_by_user_id");
         });
 
         modelBuilder.Entity<OutboundOrderItem>(entity =>
@@ -1060,6 +1125,73 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.WarehouseAssignments)
                 .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("fk_warehouse_assignments_warehouse_id");
+        });
+
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("reports_pkey");
+
+            entity.ToTable("reports");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(e => e.ReportType)
+                .HasColumnType("character varying")
+                .HasColumnName("report_type");
+            entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+            entity.Property(e => e.TimeFrom)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("time_from");
+            entity.Property(e => e.TimeTo)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("time_to");
+            entity.Property(e => e.Status)
+                .HasColumnType("character varying")
+                .HasColumnName("status");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CompletedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("completed_at");
+            entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+            entity.Property(e => e.ParametersJson)
+                .HasColumnType("jsonb")
+                .HasColumnName("parameters_json");
+            entity.Property(e => e.SummaryJson)
+                .HasColumnType("jsonb")
+                .HasColumnName("summary_json");
+            entity.Property(e => e.DataJson)
+                .HasColumnType("jsonb")
+                .HasColumnName("data_json");
+            entity.Property(e => e.SchemaVersion)
+                .HasColumnType("character varying")
+                .HasColumnName("schema_version");
+            entity.Property(e => e.PdfUrl).HasColumnName("pdf_url");
+            entity.Property(e => e.PdfFileName)
+                .HasColumnType("character varying")
+                .HasColumnName("pdf_file_name");
+            entity.Property(e => e.PdfContentHash)
+                .HasColumnType("character varying")
+                .HasColumnName("pdf_content_hash");
+            entity.Property(e => e.PdfGeneratedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("pdf_generated_at");
+
+            entity.HasOne<Company>().WithMany()
+                .HasForeignKey(d => d.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_reports_company_id");
+
+            entity.HasOne<User>().WithMany()
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_reports_created_by_user_id");
+
+            entity.HasOne<Warehouse>().WithMany()
+                .HasForeignKey(d => d.WarehouseId)
+                .HasConstraintName("fk_reports_warehouse_id");
         });
 
         OnModelCreatingPartial(modelBuilder);
