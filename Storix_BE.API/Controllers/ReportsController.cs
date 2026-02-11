@@ -8,7 +8,9 @@ namespace Storix_BE.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "1,2")]
+    // Reporting is company-scoped. Vendor Super Admin (role 1) must not operate on customer company data.
+    // Only Company Admin (role 2) can create/view/export reports for its own company.
+    [Authorize(Roles = "2")]
     public class ReportsController : ControllerBase
     {
         private readonly IReportingService _reportingService;
@@ -32,16 +34,15 @@ namespace Storix_BE.API.Controllers
             if (caller == null)
                 return Unauthorized();
 
-            if (roleId.Value == 2 && request.CompanyId.HasValue && request.CompanyId.Value > 0 && caller.CompanyId != request.CompanyId.Value)
+            if (roleId.Value != 2)
+                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
+
+            if (request.CompanyId.HasValue && request.CompanyId.Value > 0 && caller.CompanyId != request.CompanyId.Value)
                 return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
 
-            var effectiveCompanyId = ResolveCompanyId(roleId.Value, caller.CompanyId, request.CompanyId);
+            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, request.CompanyId);
             if (!effectiveCompanyId.HasValue)
-            {
-                if (roleId.Value == 1)
-                    return BadRequest(new { message = "companyId is required for Super Admin." });
                 return Unauthorized(new { message = "Missing companyId in token/user context." });
-            }
 
             try
             {
@@ -75,16 +76,15 @@ namespace Storix_BE.API.Controllers
             if (caller == null)
                 return Unauthorized();
 
-            if (roleId.Value == 2 && companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
+            if (roleId.Value != 2)
+                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
+
+            if (companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
                 return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
 
-            var effectiveCompanyId = ResolveCompanyId(roleId.Value, caller.CompanyId, companyId);
+            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, companyId);
             if (!effectiveCompanyId.HasValue)
-            {
-                if (roleId.Value == 1)
-                    return BadRequest(new { message = "companyId is required for Super Admin." });
                 return Unauthorized(new { message = "Missing companyId in token/user context." });
-            }
 
             try
             {
@@ -121,16 +121,15 @@ namespace Storix_BE.API.Controllers
             if (caller == null)
                 return Unauthorized();
 
-            if (roleId.Value == 2 && companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
+            if (roleId.Value != 2)
+                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
+
+            if (companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
                 return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
 
-            var effectiveCompanyId = ResolveCompanyId(roleId.Value, caller.CompanyId, companyId);
+            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, companyId);
             if (!effectiveCompanyId.HasValue)
-            {
-                if (roleId.Value == 1)
-                    return BadRequest(new { message = "companyId is required for Super Admin." });
                 return Unauthorized(new { message = "Missing companyId in token/user context." });
-            }
 
             try
             {
@@ -159,16 +158,15 @@ namespace Storix_BE.API.Controllers
             if (caller == null)
                 return Unauthorized();
 
-            if (roleId.Value == 2 && companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
+            if (roleId.Value != 2)
+                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
+
+            if (companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
                 return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
 
-            var effectiveCompanyId = ResolveCompanyId(roleId.Value, caller.CompanyId, companyId);
+            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, companyId);
             if (!effectiveCompanyId.HasValue)
-            {
-                if (roleId.Value == 1)
-                    return BadRequest(new { message = "companyId is required for Super Admin." });
                 return Unauthorized(new { message = "Missing companyId in token/user context." });
-            }
 
             try
             {
@@ -201,16 +199,8 @@ namespace Storix_BE.API.Controllers
             return User.FindFirst(ClaimTypes.Email)?.Value;
         }
 
-        private static int? ResolveCompanyId(int roleId, int? callerCompanyId, int? requestedCompanyId)
+        private static int? ResolveCompanyIdForCompanyAdmin(int? callerCompanyId, int? requestedCompanyId)
         {
-            // Super Admin can query any company but must specify it explicitly.
-            if (roleId == 1)
-            {
-                return requestedCompanyId.HasValue && requestedCompanyId.Value > 0
-                    ? requestedCompanyId.Value
-                    : null;
-            }
-
             // Company Admin: always scoped to its own company; allow requestedCompanyId only if it matches.
             if (!callerCompanyId.HasValue || callerCompanyId.Value <= 0) return null;
 
