@@ -17,6 +17,7 @@ namespace Storix_BE.API.Configuration
             services.AddScoped<IInventoryOutboundRepository, InventoryOutboundRepository>();
             services.AddScoped<IPaymentRepository, PaymentRepository>();
             services.AddScoped<IReportingRepository, ReportingRepository>();
+            services.AddScoped<IStockCountRepository, StockCountRepository>();
             return services;
         }
     }
