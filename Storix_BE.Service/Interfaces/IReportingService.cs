@@ -24,6 +24,7 @@ namespace Storix_BE.Service.Interfaces
     public static class ReportTypes
     {
         public const string OutboundKpiBasic = "OutboundKpiBasic";
+        public const string InventoryTracking = "InventoryTracking";
     }
 
     public sealed record CreateReportRequest(
