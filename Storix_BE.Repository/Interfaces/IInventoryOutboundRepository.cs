@@ -1,4 +1,5 @@
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -24,5 +25,13 @@ namespace Storix_BE.Repository.Interfaces
         Task<List<OutboundOrder>> GetAllOutboundOrdersAsync(int companyId, int? warehouseId);
         Task<OutboundOrder> GetOutboundOrderByIdAsync(int companyId, int id);
         Task<List<OutboundOrder>> GetOutboundOrdersByStaffAsync(int companyId, int staffId);
+        Task<OutboundRequestExportDto?> GetOutboundRequestForExportAsync(int outboundRequestId);
+        Task<OutboundOrderExportDto?> GetOutboundOrderForExportAsync(int outboundOrderId);
+
+        byte[] ExportOutboundRequestToCsv(OutboundRequestExportDto request);
+        byte[] ExportOutboundRequestToExcel(OutboundRequestExportDto request);
+
+        byte[] ExportOutboundOrderToCsv(OutboundOrderExportDto order);
+        byte[] ExportOutboundOrderToExcel(OutboundOrderExportDto order);
     }
 }
