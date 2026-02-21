@@ -15,7 +15,7 @@ namespace Storix_BE.Service.Interfaces
         Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status);
 
         Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);
-
+        
         Task<InboundOrder> UpdateTicketItemsAsync(int inboundOrderId, IEnumerable<UpdateInboundOrderItemRequest> items);
         Task<List<InboundRequestDto>> GetAllInboundRequestsAsync(int companyId);
         Task<List<InboundOrderDto>> GetAllInboundOrdersAsync(int companyId);
@@ -29,7 +29,7 @@ namespace Storix_BE.Service.Interfaces
         byte[] ExportInboundRequestToExcel(InboundRequestExportDto request);
 
         byte[] ExportInboundOrderToCsv(InboundOrderExportDto order);
-        byte[] ExportInboundOrderToExcel(InboundOrderExportDto order);
+        byte[] ExportInboundOrderToExcel(InboundOrderExportDto order);       
     }    
     public sealed record SupplierDto(int Id, string? Name, string? Phone, string? Email);
 
