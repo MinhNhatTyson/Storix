@@ -177,6 +177,7 @@ namespace Storix_BE.Repository.Implementation
             try
             {
                 _context.InboundOrders.Add(inboundOrder);
+                inboundRequest.Status = "Transported";
                 await _context.SaveChangesAsync().ConfigureAwait(false);
 
                 await tx.CommitAsync().ConfigureAwait(false);
@@ -202,11 +203,9 @@ namespace Storix_BE.Repository.Implementation
             if (order == null)
                 throw new InvalidOperationException($"InboundOrder with id {inboundOrderId} not found.");
 
-            // Warehouse must be specified to update inventory
             if (!order.WarehouseId.HasValue)
                 throw new InvalidOperationException("InboundOrder must specify WarehouseId to update inventory.");
 
-            // Basic per-item validation
             foreach (var i in items)
             {
                 if (i.ProductId == null || i.ProductId <= 0)
@@ -217,11 +216,9 @@ namespace Storix_BE.Repository.Implementation
                     throw new InvalidOperationException("ReceivedQuantity cannot be negative.");
             }
 
-            // Prepare for inventory adjustments (we compute deltas = newReceived - previousReceived)
             var incomingList = items.ToList();
             var productIds = incomingList.Select(i => i.ProductId!.Value).Distinct().ToList();
 
-            // Load existing inventories for the order's warehouse and product ids
             var inventories = await _context.Inventories
                 .Where(inv => inv.WarehouseId == order.WarehouseId && inv.ProductId.HasValue && productIds.Contains(inv.ProductId.Value))
                 .ToListAsync()
@@ -232,10 +229,8 @@ namespace Storix_BE.Repository.Implementation
             await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
             try
             {
-                // Track quantity changes per product
                 var deltas = new List<(int ProductId, int Delta)>();
 
-                // Update existing items or add new ones, compute deltas
                 foreach (var incoming in incomingList)
                 {
                     InboundOrderItem? existing = null;
@@ -248,7 +243,6 @@ namespace Storix_BE.Repository.Implementation
                     }
                     else
                     {
-                        // try find by ProductId
                         existing = order.InboundOrderItems.FirstOrDefault(x => x.ProductId == incoming.ProductId);
                     }
 
@@ -279,18 +273,15 @@ namespace Storix_BE.Repository.Implementation
                         deltas.Add((incoming.ProductId!.Value, delta));
                 }
 
-                // Apply inventory changes and create transactions
                 foreach (var (productId, delta) in deltas)
                 {
                     var inventory = inventories.FirstOrDefault(i => i.ProductId == productId);
 
                     if (inventory == null)
                     {
-                        // if delta < 0, cannot reduce missing inventory
                         if (delta < 0)
                             throw new InvalidOperationException($"Insufficient stock for ProductId {productId}. Available: 0, Required reduction: {-delta}");
 
-                        // create inventory record for this product in the warehouse
                         inventory = new Inventory
                         {
                             WarehouseId = order.WarehouseId,
@@ -327,7 +318,6 @@ namespace Storix_BE.Repository.Implementation
                     _context.InventoryTransactions.Add(transaction);
                 }
 
-                // Update order status based on received vs expected
                 var allItems = order.InboundOrderItems;
                 var anyReceived = allItems.Any(i => (i.ReceivedQuantity ?? 0) > 0);
                 var allComplete = allItems.Any() && allItems.All(i => (i.ExpectedQuantity ?? 0) > 0 && (i.ReceivedQuantity ?? 0) == (i.ExpectedQuantity ?? 0));
