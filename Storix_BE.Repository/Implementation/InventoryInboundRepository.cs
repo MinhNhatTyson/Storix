@@ -155,7 +155,7 @@ namespace Storix_BE.Repository.Implementation
                 SupplierId = inboundRequest.SupplierId,
                 CreatedBy = createdBy,
                 StaffId = staffId, 
-                Status = "Created",
+                Status = "Waiting for payment",
                 InboundRequestId = inboundRequest.Id,
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
                 ReferenceCode = $"INB-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}"
@@ -177,6 +177,7 @@ namespace Storix_BE.Repository.Implementation
             try
             {
                 _context.InboundOrders.Add(inboundOrder);
+                inboundRequest.Status = "Transported";
                 await _context.SaveChangesAsync().ConfigureAwait(false);
 
                 await tx.CommitAsync().ConfigureAwait(false);
@@ -202,38 +203,62 @@ namespace Storix_BE.Repository.Implementation
             if (order == null)
                 throw new InvalidOperationException($"InboundOrder with id {inboundOrderId} not found.");
 
-            // Validate items: each must have ProductId and at least one quantity to update
+            if (!order.WarehouseId.HasValue)
+                throw new InvalidOperationException("InboundOrder must specify WarehouseId to update inventory.");
+
             foreach (var i in items)
             {
                 if (i.ProductId == null || i.ProductId <= 0)
                     throw new InvalidOperationException("Each item must have a valid ProductId.");
+                if (i.ExpectedQuantity.HasValue && i.ExpectedQuantity < 0)
+                    throw new InvalidOperationException("ExpectedQuantity cannot be negative.");
+                if (i.ReceivedQuantity.HasValue && i.ReceivedQuantity < 0)
+                    throw new InvalidOperationException("ReceivedQuantity cannot be negative.");
             }
 
-            // Update existing items or add new ones. We will not remove items that are not present in the payload.
-            foreach (var incoming in items)
-            {
-                if (incoming.Id > 0)
-                {
-                    var existing = order.InboundOrderItems.FirstOrDefault(x => x.Id == incoming.Id);
-                    if (existing == null)
-                        throw new InvalidOperationException($"InboundOrderItem with id {incoming.Id} not found in order {inboundOrderId}.");
+            var incomingList = items.ToList();
+            var productIds = incomingList.Select(i => i.ProductId!.Value).Distinct().ToList();
 
-                    // Update allowed fields
-                    existing.ExpectedQuantity = incoming.ExpectedQuantity;
-                    existing.ReceivedQuantity = incoming.ReceivedQuantity;
-                    existing.ProductId = incoming.ProductId;
-                }
-                else
+            var inventories = await _context.Inventories
+                .Where(inv => inv.WarehouseId == order.WarehouseId && inv.ProductId.HasValue && productIds.Contains(inv.ProductId.Value))
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+
+            await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
+            try
+            {
+                var deltas = new List<(int ProductId, int Delta)>();
+
+                foreach (var incoming in incomingList)
                 {
-                    // Try to find by ProductId first
-                    var existingByProduct = order.InboundOrderItems.FirstOrDefault(x => x.ProductId == incoming.ProductId);
-                    if (existingByProduct != null)
+                    InboundOrderItem? existing = null;
+
+                    if (incoming.Id > 0)
                     {
-                        existingByProduct.ExpectedQuantity = incoming.ExpectedQuantity;
-                        existingByProduct.ReceivedQuantity = incoming.ReceivedQuantity;
+                        existing = order.InboundOrderItems.FirstOrDefault(x => x.Id == incoming.Id);
+                        if (existing == null)
+                            throw new InvalidOperationException($"InboundOrderItem with id {incoming.Id} not found in order {inboundOrderId}.");
                     }
                     else
                     {
+                        existing = order.InboundOrderItems.FirstOrDefault(x => x.ProductId == incoming.ProductId);
+                    }
+
+                    var previousReceived = existing?.ReceivedQuantity ?? 0;
+                    var newReceived = incoming.ReceivedQuantity ?? 0;
+                    var delta = newReceived - previousReceived;
+
+                    if (existing != null)
+                    {
+                        existing.ExpectedQuantity = incoming.ExpectedQuantity;
+                        existing.ReceivedQuantity = incoming.ReceivedQuantity;
+                        existing.ProductId = incoming.ProductId;
+                    }
+                    else
+                    {
+
                         var newItem = new InboundOrderItem
                         {
                             ProductId = incoming.ProductId,
@@ -243,10 +268,73 @@ namespace Storix_BE.Repository.Implementation
                         };
                         order.InboundOrderItems.Add(newItem);
                     }
-                }
-            }
 
-            await _context.SaveChangesAsync().ConfigureAwait(false);
+                    if (delta != 0)
+                        deltas.Add((incoming.ProductId!.Value, delta));
+                }
+
+                foreach (var (productId, delta) in deltas)
+                {
+                    var inventory = inventories.FirstOrDefault(i => i.ProductId == productId);
+
+                    if (inventory == null)
+                    {
+                        if (delta < 0)
+                            throw new InvalidOperationException($"Insufficient stock for ProductId {productId}. Available: 0, Required reduction: {-delta}");
+
+                        inventory = new Inventory
+                        {
+                            WarehouseId = order.WarehouseId,
+                            ProductId = productId,
+                            Quantity = delta,
+                            LastUpdated = now
+                        };
+                        _context.Inventories.Add(inventory);
+                        inventories.Add(inventory);
+                    }
+                    else
+                    {
+                        var newQty = (inventory.Quantity ?? 0) + delta;
+                        if (newQty < 0)
+                        {
+                            var available = inventory.Quantity ?? 0;
+                            throw new InvalidOperationException($"Insufficient stock for ProductId {productId}. Available: {available}, Required reduction: {-delta}");
+                        }
+
+                        inventory.Quantity = newQty;
+                        inventory.LastUpdated = now;
+                    }
+
+                    var transaction = new InventoryTransaction
+                    {
+                        WarehouseId = order.WarehouseId,
+                        ProductId = productId,
+                        TransactionType = "Inbound",
+                        QuantityChange = delta,
+                        ReferenceId = order.Id,
+                        PerformedBy = order.StaffId ?? order.CreatedBy,
+                        CreatedAt = now
+                    };
+                    _context.InventoryTransactions.Add(transaction);
+                }
+
+                var allItems = order.InboundOrderItems;
+                var anyReceived = allItems.Any(i => (i.ReceivedQuantity ?? 0) > 0);
+                var allComplete = allItems.Any() && allItems.All(i => (i.ExpectedQuantity ?? 0) > 0 && (i.ReceivedQuantity ?? 0) == (i.ExpectedQuantity ?? 0));
+
+                if (allComplete)
+                    order.Status = "Completed";
+                else if (anyReceived)
+                    order.Status = "Partially Completed";
+
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                await tx.RollbackAsync().ConfigureAwait(false);
+                throw;
+            }
 
             return order;
         }
@@ -269,6 +357,7 @@ namespace Storix_BE.Repository.Implementation
             return await _context.InboundOrders
                 .Include(o => o.InboundOrderItems)
                     .ThenInclude(i => i.Product)
+                .Include(o => o.InboundRequest)
                 .Include(o => o.Supplier)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
@@ -301,6 +390,7 @@ namespace Storix_BE.Repository.Implementation
             var order = await _context.InboundOrders
                 .Include(o => o.InboundOrderItems)
                     .ThenInclude(i => i.Product)
+                .Include(o => o.InboundRequest)
                 .Include(o => o.Supplier)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
