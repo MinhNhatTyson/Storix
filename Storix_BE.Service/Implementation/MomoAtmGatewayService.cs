@@ -137,7 +137,8 @@ namespace Storix_BE.Service.Implementation
                 $"&transId={request.TransId ?? string.Empty}";
 
             var expectedSignature = HmacSha256(rawSignature, _momoOptions.SecretKey);
-            return string.Equals(expectedSignature, request.Signature, StringComparison.OrdinalIgnoreCase);
+            var signatureMatch = string.Equals(expectedSignature, request.Signature, StringComparison.OrdinalIgnoreCase);
+            return signatureMatch;
         }
 
         private void ValidateOptions()

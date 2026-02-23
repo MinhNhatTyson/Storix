@@ -90,6 +90,8 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<Report> Reports { get; set; }
 
+    public virtual DbSet<Subscription> Subscriptions { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -209,11 +211,69 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
+            entity.Property(e => e.PlanType)
+                .HasColumnType("character varying")
+                .HasColumnName("plan_type");
+            entity.Property(e => e.SubscriptionId).HasColumnName("subscription_id");
+            entity.Property(e => e.IdempotencyKey)
+                .HasColumnType("character varying")
+                .HasColumnName("idempotency_key");
+            entity.Property(e => e.MomoTransId)
+                .HasColumnType("character varying")
+                .HasColumnName("momo_trans_id");
+
+            entity.HasIndex(e => e.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL")
+                .HasDatabaseName("ix_company_payments_idempotency_key");
 
             entity.HasOne(d => d.Company).WithMany(p => p.CompanyPayments)
                 .HasForeignKey(d => d.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_company_payments_company_id");
+
+            entity.HasOne(d => d.Subscription).WithMany(p => p.CompanyPayments)
+                .HasForeignKey(d => d.SubscriptionId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_company_payments_subscription_id");
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("subscriptions_pkey");
+
+            entity.ToTable("subscriptions");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.PlanType)
+                .HasColumnType("character varying")
+                .HasColumnName("plan_type");
+            entity.Property(e => e.Status)
+                .HasColumnType("character varying")
+                .HasColumnName("status");
+            entity.Property(e => e.StartDate)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("start_date");
+            entity.Property(e => e.EndDate)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("end_date");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updated_at");
+
+            entity.HasIndex(e => new { e.CompanyId, e.Status })
+                .HasDatabaseName("ix_subscriptions_company_id_status");
+            entity.HasIndex(e => e.EndDate)
+                .HasDatabaseName("ix_subscriptions_end_date");
+
+            entity.HasOne(d => d.Company).WithMany(p => p.Subscriptions)
+                .HasForeignKey(d => d.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_subscriptions_company_id");
         });
 
         modelBuilder.Entity<InboundOrder>(entity =>
