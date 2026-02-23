@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Storix_BE.Service.Interfaces;
 using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // Reporting is company-scoped. Vendor Super Admin (role 1) must not operate on customer company data.
-    // Only Company Admin (role 2) can create/view/export reports for its own company.
+    // Reporting is company-scoped. Only Company Admin (role 2) can create/view/export reports.
     [Authorize(Roles = "2")]
     public class ReportsController : ControllerBase
     {
@@ -25,29 +25,13 @@ namespace Storix_BE.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateReport([FromBody] CreateReportApiRequest request)
         {
-            var roleId = GetRoleIdFromToken();
-            var email = GetEmailFromToken();
-            if (roleId == null || string.IsNullOrWhiteSpace(email))
-                return Unauthorized();
-
-            var caller = await _userService.GetByEmailAsync(email);
-            if (caller == null)
-                return Unauthorized();
-
-            if (roleId.Value != 2)
-                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
-
-            if (request.CompanyId.HasValue && request.CompanyId.Value > 0 && caller.CompanyId != request.CompanyId.Value)
-                return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
-
-            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, request.CompanyId);
-            if (!effectiveCompanyId.HasValue)
-                return Unauthorized(new { message = "Missing companyId in token/user context." });
+            var (error, effectiveCompanyId, caller) = await ResolveCallerAsync(request.CompanyId);
+            if (error != null) return error;
 
             try
             {
                 var payload = new CreateReportRequest(request.ReportType, request.WarehouseId, request.TimeFrom, request.TimeTo);
-                var result = await _reportingService.CreateReportAsync(effectiveCompanyId.Value, caller.Id, payload);
+                var result = await _reportingService.CreateReportAsync(effectiveCompanyId, caller!.Id, payload);
                 return Ok(result);
             }
             catch (ArgumentException ex)
@@ -67,28 +51,12 @@ namespace Storix_BE.API.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetReportById(int id, [FromQuery] int? companyId = null)
         {
-            var roleId = GetRoleIdFromToken();
-            var email = GetEmailFromToken();
-            if (roleId == null || string.IsNullOrWhiteSpace(email))
-                return Unauthorized();
-
-            var caller = await _userService.GetByEmailAsync(email);
-            if (caller == null)
-                return Unauthorized();
-
-            if (roleId.Value != 2)
-                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
-
-            if (companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
-                return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
-
-            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, companyId);
-            if (!effectiveCompanyId.HasValue)
-                return Unauthorized(new { message = "Missing companyId in token/user context." });
+            var (error, effectiveCompanyId, _) = await ResolveCallerAsync(companyId);
+            if (error != null) return error;
 
             try
             {
-                var report = await _reportingService.GetReportAsync(effectiveCompanyId.Value, id);
+                var report = await _reportingService.GetReportAsync(effectiveCompanyId, id);
                 if (report == null) return NotFound(new { message = "Report not found." });
                 return Ok(report);
             }
@@ -112,28 +80,12 @@ namespace Storix_BE.API.Controllers
             [FromQuery] int skip = 0,
             [FromQuery] int take = 50)
         {
-            var roleId = GetRoleIdFromToken();
-            var email = GetEmailFromToken();
-            if (roleId == null || string.IsNullOrWhiteSpace(email))
-                return Unauthorized();
-
-            var caller = await _userService.GetByEmailAsync(email);
-            if (caller == null)
-                return Unauthorized();
-
-            if (roleId.Value != 2)
-                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
-
-            if (companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
-                return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
-
-            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, companyId);
-            if (!effectiveCompanyId.HasValue)
-                return Unauthorized(new { message = "Missing companyId in token/user context." });
+            var (error, effectiveCompanyId, _) = await ResolveCallerAsync(companyId);
+            if (error != null) return error;
 
             try
             {
-                var items = await _reportingService.ListReportsAsync(effectiveCompanyId.Value, type, warehouseId, from, to, skip, take);
+                var items = await _reportingService.ListReportsAsync(effectiveCompanyId, type, warehouseId, from, to, skip, take);
                 return Ok(items);
             }
             catch (ArgumentException ex)
@@ -149,28 +101,12 @@ namespace Storix_BE.API.Controllers
         [HttpPost("{id:int}/export/pdf")]
         public async Task<IActionResult> ExportPdf(int id, [FromQuery] int? companyId = null)
         {
-            var roleId = GetRoleIdFromToken();
-            var email = GetEmailFromToken();
-            if (roleId == null || string.IsNullOrWhiteSpace(email))
-                return Unauthorized();
-
-            var caller = await _userService.GetByEmailAsync(email);
-            if (caller == null)
-                return Unauthorized();
-
-            if (roleId.Value != 2)
-                return StatusCode(403, new { message = "Access denied. Only Company Administrator can use reporting endpoints." });
-
-            if (companyId.HasValue && companyId.Value > 0 && caller.CompanyId != companyId.Value)
-                return StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." });
-
-            var effectiveCompanyId = ResolveCompanyIdForCompanyAdmin(caller.CompanyId, companyId);
-            if (!effectiveCompanyId.HasValue)
-                return Unauthorized(new { message = "Missing companyId in token/user context." });
+            var (error, effectiveCompanyId, _) = await ResolveCallerAsync(companyId);
+            if (error != null) return error;
 
             try
             {
-                var artifact = await _reportingService.ExportReportPdfAsync(effectiveCompanyId.Value, id);
+                var artifact = await _reportingService.ExportReportPdfAsync(effectiveCompanyId, id);
                 return Ok(artifact);
             }
             catch (ArgumentException ex)
@@ -187,27 +123,27 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        private int? GetRoleIdFromToken()
+        /// <summary>
+        /// Resolves the authenticated caller and effective companyId for Company Admin scope.
+        /// Returns (errorResult, effectiveCompanyId, caller). If errorResult is non-null, return it immediately.
+        /// </summary>
+        private async Task<(IActionResult? error, int effectiveCompanyId, Storix_BE.Domain.Models.User? caller)> ResolveCallerAsync(int? requestedCompanyId)
         {
-            var roleIdStr = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (string.IsNullOrWhiteSpace(roleIdStr)) return null;
-            return int.TryParse(roleIdStr, out var id) ? id : null;
-        }
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (string.IsNullOrWhiteSpace(email))
+                return (Unauthorized(), 0, null);
 
-        private string? GetEmailFromToken()
-        {
-            return User.FindFirst(ClaimTypes.Email)?.Value;
-        }
+            var caller = await _userService.GetByEmailAsync(email);
+            if (caller == null)
+                return (Unauthorized(), 0, null);
 
-        private static int? ResolveCompanyIdForCompanyAdmin(int? callerCompanyId, int? requestedCompanyId)
-        {
-            // Company Admin: always scoped to its own company; allow requestedCompanyId only if it matches.
-            if (!callerCompanyId.HasValue || callerCompanyId.Value <= 0) return null;
+            if (requestedCompanyId.HasValue && requestedCompanyId.Value > 0 && caller.CompanyId != requestedCompanyId.Value)
+                return (StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." }), 0, null);
 
-            if (requestedCompanyId.HasValue && requestedCompanyId.Value > 0 && requestedCompanyId.Value != callerCompanyId.Value)
-                return null;
+            if (!caller.CompanyId.HasValue || caller.CompanyId.Value <= 0)
+                return (Unauthorized(new { message = "Missing companyId in token/user context." }), 0, null);
 
-            return callerCompanyId.Value;
+            return (null, caller.CompanyId.Value, caller);
         }
     }
 
@@ -218,4 +154,3 @@ namespace Storix_BE.API.Controllers
         DateTime TimeTo,
         int? CompanyId);
 }
-

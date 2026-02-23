@@ -38,6 +38,8 @@ namespace Storix_BE.Service.Implementation
 
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
+            var paramsOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
+
             var report = new Report
             {
                 CompanyId = companyId,
@@ -46,39 +48,74 @@ namespace Storix_BE.Service.Implementation
                 WarehouseId = payload.WarehouseId,
                 TimeFrom = payload.TimeFrom,
                 TimeTo = payload.TimeTo,
-                Status = "Running",
-                CreatedAt = now
+                Status = ReportStatus.Running,
+                CreatedAt = now,
+                ParametersJson = JsonSerializer.Serialize(new
+                {
+                    reportType = payload.ReportType,
+                    warehouseId = payload.WarehouseId,
+                    timeFrom = payload.TimeFrom,
+                    timeTo = payload.TimeTo
+                }, paramsOptions)
             };
 
             report = await _repo.CreateReportAsync(report).ConfigureAwait(false);
 
             try
             {
-                if (!string.Equals(payload.ReportType, ReportTypes.OutboundKpiBasic, StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException($"Unsupported report type '{payload.ReportType}'.");
-                }
-
-                var kpi = await _repo.GetOutboundKpiBasicAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
-                    .ConfigureAwait(false);
-
                 var jsonOptions = new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                     WriteIndented = false
                 };
 
-                var summaryObj = new
+                if (string.Equals(payload.ReportType, ReportTypes.OutboundKpiBasic, StringComparison.Ordinal))
                 {
-                    totalCompleted = kpi.TotalCompleted,
-                    overallAvgLeadTimeHours = kpi.OverallAvgLeadTimeHours
-                };
+                    var kpi = await _repo.GetOutboundKpiBasicAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
+                        .ConfigureAwait(false);
 
-                report.SummaryJson = JsonSerializer.Serialize(summaryObj, jsonOptions);
-                report.DataJson = JsonSerializer.Serialize(kpi, jsonOptions);
-                report.SchemaVersion = "1";
+                    report.SummaryJson = JsonSerializer.Serialize(new
+                    {
+                        totalCompleted = kpi.TotalCompleted,
+                        overallAvgLeadTimeHours = kpi.OverallAvgLeadTimeHours
+                    }, jsonOptions);
+                    report.DataJson = JsonSerializer.Serialize(kpi, jsonOptions);
+                    report.SchemaVersion = ReportSchemaVersions.OutboundKpiBasic;
+                }
+                else if (string.Equals(payload.ReportType, ReportTypes.InventoryTracking, StringComparison.Ordinal))
+                {
+                    var inv = await _repo.GetInventoryTrackingAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
+                        .ConfigureAwait(false);
 
-                report.Status = "Succeeded";
+                    report.SummaryJson = JsonSerializer.Serialize(new
+                    {
+                        totalInboundTransactions = inv.TotalInboundTransactions,
+                        totalOutboundTransactions = inv.TotalOutboundTransactions,
+                        totalInboundQty = inv.TotalInboundQty,
+                        totalOutboundQty = inv.TotalOutboundQty
+                    }, jsonOptions);
+                    report.DataJson = JsonSerializer.Serialize(inv, jsonOptions);
+                    report.SchemaVersion = ReportSchemaVersions.InventoryTracking;
+                }
+                else if (string.Equals(payload.ReportType, ReportTypes.InboundKpiBasic, StringComparison.Ordinal))
+                {
+                    var inbound = await _repo.GetInboundKpiBasicAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
+                        .ConfigureAwait(false);
+
+                    report.SummaryJson = JsonSerializer.Serialize(new
+                    {
+                        totalCompleted = inbound.TotalCompleted,
+                        totalReceivedQty = inbound.TotalReceivedQty
+                    }, jsonOptions);
+                    report.DataJson = JsonSerializer.Serialize(inbound, jsonOptions);
+                    report.SchemaVersion = ReportSchemaVersions.InboundKpiBasic;
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Unsupported report type '{payload.ReportType}'.");
+                }
+
+                report.Status = ReportStatus.Succeeded;
                 report.CompletedAt = now;
                 report.ErrorMessage = null;
                 await _repo.UpdateReportAsync(report).ConfigureAwait(false);
@@ -99,7 +136,7 @@ namespace Storix_BE.Service.Implementation
             }
             catch (Exception ex)
             {
-                report.Status = "Failed";
+                report.Status = ReportStatus.Failed;
                 report.CompletedAt = now;
                 report.ErrorMessage = ex.Message;
                 await _repo.UpdateReportAsync(report).ConfigureAwait(false);
@@ -147,25 +184,37 @@ namespace Storix_BE.Service.Implementation
             if (report == null)
                 throw new InvalidOperationException("Report not found.");
 
-            if (!string.Equals(report.Status, "Succeeded", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(report.Status, ReportStatus.Succeeded, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException($"Report is not ready for export. Current status: '{report.Status}'.");
 
             if (string.IsNullOrWhiteSpace(report.DataJson))
                 throw new InvalidOperationException("Report result data is missing.");
 
-            if (!string.Equals(report.ReportType, ReportTypes.OutboundKpiBasic, StringComparison.Ordinal))
-                throw new InvalidOperationException($"PDF export is not implemented for report type '{report.ReportType}'.");
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-            var jsonOptions = new JsonSerializerOptions
+            byte[] pdfBytes;
+            if (string.Equals(report.ReportType, ReportTypes.OutboundKpiBasic, StringComparison.Ordinal))
             {
-                PropertyNameCaseInsensitive = true
-            };
-
-            var data = JsonSerializer.Deserialize<OutboundKpiBasicReportData>(report.DataJson, jsonOptions);
-            if (data == null)
-                throw new InvalidOperationException("Failed to deserialize report data.");
-
-            var pdfBytes = GenerateOutboundKpiBasicPdf(report, data);
+                var data = JsonSerializer.Deserialize<OutboundKpiBasicReportData>(report.DataJson, jsonOptions)
+                    ?? throw new InvalidOperationException("Failed to deserialize report data.");
+                pdfBytes = GenerateOutboundKpiBasicPdf(report, data);
+            }
+            else if (string.Equals(report.ReportType, ReportTypes.InventoryTracking, StringComparison.Ordinal))
+            {
+                var data = JsonSerializer.Deserialize<InventoryTrackingReportData>(report.DataJson, jsonOptions)
+                    ?? throw new InvalidOperationException("Failed to deserialize report data.");
+                pdfBytes = GenerateInventoryTrackingPdf(report, data);
+            }
+            else if (string.Equals(report.ReportType, ReportTypes.InboundKpiBasic, StringComparison.Ordinal))
+            {
+                var data = JsonSerializer.Deserialize<InboundKpiBasicReportData>(report.DataJson, jsonOptions)
+                    ?? throw new InvalidOperationException("Failed to deserialize report data.");
+                pdfBytes = GenerateInboundKpiBasicPdf(report, data);
+            }
+            else
+            {
+                throw new InvalidOperationException($"PDF export is not implemented for report type '{report.ReportType}'.");
+            }
 
             var fileName = $"report_{report.Id}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.pdf";
             var contentHash = ComputeSha256Hex(pdfBytes);
@@ -217,8 +266,6 @@ namespace Storix_BE.Service.Implementation
 
         private static byte[] GenerateOutboundKpiBasicPdf(Report report, OutboundKpiBasicReportData data)
         {
-            QuestPDF.Settings.License = LicenseType.Community;
-
             var completedChart = BuildCompletedCountByDayChart(data);
             var leadTimeChart = BuildAvgLeadTimeByDayChart(data);
 
@@ -360,6 +407,240 @@ namespace Storix_BE.Service.Implementation
             return plot.GetImageBytes(800, 350, ScottPlot.ImageFormat.Png);
         }
 
+        private static byte[] GenerateInventoryTrackingPdf(Report report, InventoryTrackingReportData data)
+        {
+            var inboundChart = BuildInventoryDailyChart(data);
+
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(25);
+                    page.DefaultTextStyle(x => x.FontSize(10));
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text($"Report: {report.ReportType}").FontSize(16).SemiBold();
+                        col.Item().Text($"ReportId: {report.Id}   CompanyId: {report.CompanyId}   WarehouseId: {(report.WarehouseId?.ToString() ?? "All")}");
+                        col.Item().Text($"Range: {data.TimeFrom:yyyy-MM-dd} -> {data.TimeTo:yyyy-MM-dd}");
+                        col.Item().PaddingTop(5).LineHorizontal(1);
+                    });
+
+                    page.Content().Column(col =>
+                    {
+                        col.Spacing(10);
+
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Border(1).Padding(8).Column(box =>
+                            {
+                                box.Item().Text("Inbound transactions").SemiBold();
+                                box.Item().Text(data.TotalInboundTransactions.ToString()).FontSize(14);
+                                box.Item().Text($"Total qty: {data.TotalInboundQty}");
+                            });
+                            row.RelativeItem().Border(1).Padding(8).Column(box =>
+                            {
+                                box.Item().Text("Outbound transactions").SemiBold();
+                                box.Item().Text(data.TotalOutboundTransactions.ToString()).FontSize(14);
+                                box.Item().Text($"Total qty: {data.TotalOutboundQty}");
+                            });
+                        });
+
+                        if (inboundChart != null)
+                        {
+                            col.Item().Text("Daily inbound / outbound (transaction count)").SemiBold();
+                            col.Item().Image(inboundChart);
+                        }
+                        else
+                        {
+                            col.Item().Text("No transactions in selected range.");
+                        }
+
+                        col.Item().Text("Top products by movement").SemiBold();
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn();
+                                columns.ConstantColumn(55);
+                                columns.ConstantColumn(55);
+                                columns.ConstantColumn(55);
+                                columns.ConstantColumn(65);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CellStyle).Text("Product");
+                                header.Cell().Element(CellStyle).AlignRight().Text("In qty");
+                                header.Cell().Element(CellStyle).AlignRight().Text("Out qty");
+                                header.Cell().Element(CellStyle).AlignRight().Text("Net");
+                                header.Cell().Element(CellStyle).AlignRight().Text("Stock now");
+                            });
+
+                            foreach (var p in data.TopProducts)
+                            {
+                                table.Cell().Element(CellStyle).Text($"{p.ProductName ?? "(unknown)"} ({p.Sku ?? "-"})");
+                                table.Cell().Element(CellStyle).AlignRight().Text(p.InboundQty.ToString());
+                                table.Cell().Element(CellStyle).AlignRight().Text(p.OutboundQty.ToString());
+                                table.Cell().Element(CellStyle).AlignRight().Text(p.NetChange.ToString());
+                                table.Cell().Element(CellStyle).AlignRight().Text(p.CurrentStock?.ToString() ?? "-");
+                            }
+
+                            static IContainer CellStyle(IContainer container)
+                                => container.BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).PaddingVertical(4).PaddingHorizontal(2);
+                        });
+                    });
+
+                    page.Footer().AlignCenter().Text(x =>
+                    {
+                        x.Span("Generated at ");
+                        x.Span(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")).SemiBold();
+                    });
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+
+        private static byte[]? BuildInventoryDailyChart(InventoryTrackingReportData data)
+        {
+            if (data.ByDay == null || data.ByDay.Count == 0) return null;
+
+            var days = data.ByDay.Select(x => x.Day).ToList();
+            var positions = Enumerable.Range(0, days.Count).Select(i => (double)i).ToArray();
+            var inCounts = data.ByDay.Select(x => (double)x.InboundCount).ToArray();
+            var outCounts = data.ByDay.Select(x => (double)x.OutboundCount).ToArray();
+
+            var plot = new Plot();
+            var barsIn = plot.Add.Bars(positions, inCounts);
+            barsIn.LegendText = "Inbound";
+            var barsOut = plot.Add.Bars(positions.Select(p => p + 0.4).ToArray(), outCounts);
+            barsOut.LegendText = "Outbound";
+            plot.ShowLegend();
+            plot.Title("Daily transactions");
+            plot.YLabel("Count");
+
+            var ticks = new ScottPlot.TickGenerators.NumericManual();
+            for (var i = 0; i < days.Count; i++)
+                ticks.AddMajor(i + 0.2, days[i].ToString("MM-dd"));
+            plot.Axes.Bottom.TickGenerator = ticks;
+            plot.Axes.Bottom.TickLabelStyle.Rotation = 45;
+
+            return plot.GetImageBytes(800, 350, ScottPlot.ImageFormat.Png);
+        }
+
+        private static byte[] GenerateInboundKpiBasicPdf(Report report, InboundKpiBasicReportData data)
+        {
+            var dailyChart = BuildInboundDailyChart(data);
+
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(25);
+                    page.DefaultTextStyle(x => x.FontSize(10));
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text($"Report: {report.ReportType}").FontSize(16).SemiBold();
+                        col.Item().Text($"ReportId: {report.Id}   CompanyId: {report.CompanyId}   WarehouseId: {(report.WarehouseId?.ToString() ?? "All")}");
+                        col.Item().Text($"Range: {data.TimeFrom:yyyy-MM-dd} -> {data.TimeTo:yyyy-MM-dd}");
+                        col.Item().PaddingTop(5).LineHorizontal(1);
+                    });
+
+                    page.Content().Column(col =>
+                    {
+                        col.Spacing(10);
+
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Border(1).Padding(8).Column(box =>
+                            {
+                                box.Item().Text("Total completed inbound orders").SemiBold();
+                                box.Item().Text(data.TotalCompleted.ToString()).FontSize(14);
+                            });
+                            row.RelativeItem().Border(1).Padding(8).Column(box =>
+                            {
+                                box.Item().Text("Total received qty").SemiBold();
+                                box.Item().Text(data.TotalReceivedQty.ToString()).FontSize(14);
+                            });
+                        });
+
+                        if (dailyChart != null)
+                        {
+                            col.Item().Text("Completed inbound orders by day").SemiBold();
+                            col.Item().Image(dailyChart);
+                        }
+                        else
+                        {
+                            col.Item().Text("No completed inbound orders in selected range.");
+                        }
+
+                        col.Item().Text("Top suppliers").SemiBold();
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn();
+                                columns.ConstantColumn(80);
+                                columns.ConstantColumn(90);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(CellStyle).Text("Supplier");
+                                header.Cell().Element(CellStyle).AlignRight().Text("Orders");
+                                header.Cell().Element(CellStyle).AlignRight().Text("Received qty");
+                            });
+
+                            foreach (var s in data.BySupplier.Take(10))
+                            {
+                                table.Cell().Element(CellStyle).Text($"{s.SupplierName ?? "(unknown)"} (#{s.SupplierId})");
+                                table.Cell().Element(CellStyle).AlignRight().Text(s.CompletedCount.ToString());
+                                table.Cell().Element(CellStyle).AlignRight().Text(s.ReceivedQty.ToString());
+                            }
+
+                            static IContainer CellStyle(IContainer container)
+                                => container.BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).PaddingVertical(4).PaddingHorizontal(2);
+                        });
+                    });
+
+                    page.Footer().AlignCenter().Text(x =>
+                    {
+                        x.Span("Generated at ");
+                        x.Span(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")).SemiBold();
+                    });
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+
+        private static byte[]? BuildInboundDailyChart(InboundKpiBasicReportData data)
+        {
+            if (data.ByDay == null || data.ByDay.Count == 0) return null;
+
+            var days = data.ByDay.Select(x => x.Day).ToList();
+            var positions = Enumerable.Range(0, days.Count).Select(i => (double)i).ToArray();
+            var values = data.ByDay.Select(x => (double)x.Count).ToArray();
+
+            var plot = new Plot();
+            plot.Add.Bars(positions, values);
+            plot.Axes.Margins(bottom: 0);
+            plot.Title("Completed inbound orders");
+            plot.YLabel("Count");
+
+            var ticks = new ScottPlot.TickGenerators.NumericManual();
+            for (var i = 0; i < days.Count; i++)
+                ticks.AddMajor(i, days[i].ToString("MM-dd"));
+            plot.Axes.Bottom.TickGenerator = ticks;
+            plot.Axes.Bottom.TickLabelStyle.Rotation = 45;
+
+            return plot.GetImageBytes(800, 350, ScottPlot.ImageFormat.Png);
+        }
+
         public async Task<List<ReportRequestListItemDto>> ListReportsAsync(
             int companyId,
             string? reportType,
@@ -370,6 +651,9 @@ namespace Storix_BE.Service.Implementation
             int take)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
+            if (skip < 0) skip = 0;
+            if (take <= 0) take = 50;
+            if (take > 200) take = 200;
 
             var items = await _repo.ListReportsAsync(companyId, reportType, warehouseId, from, to, skip, take)
                 .ConfigureAwait(false);

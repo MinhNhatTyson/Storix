@@ -25,6 +25,21 @@ namespace Storix_BE.Service.Interfaces
     {
         public const string OutboundKpiBasic = "OutboundKpiBasic";
         public const string InventoryTracking = "InventoryTracking";
+        public const string InboundKpiBasic = "InboundKpiBasic";
+    }
+
+    public static class ReportStatus
+    {
+        public const string Running = "Running";
+        public const string Succeeded = "Succeeded";
+        public const string Failed = "Failed";
+    }
+
+    public static class ReportSchemaVersions
+    {
+        public const string OutboundKpiBasic = "1";
+        public const string InventoryTracking = "1";
+        public const string InboundKpiBasic = "1";
     }
 
     public sealed record CreateReportRequest(

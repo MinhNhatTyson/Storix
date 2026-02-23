@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
 using Serilog;
 using Storix_BE.API.Configuration;
 using Storix_BE.API.Filters;
@@ -7,6 +8,8 @@ using Storix_BE.Service.Implementation;
 using System.Text.Json.Serialization;
 using CloudinaryDotNet;
 
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 var cloudinarySettings = builder.Configuration.GetSection("Cloudinary");
