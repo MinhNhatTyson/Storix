@@ -3,9 +3,7 @@ namespace Storix_BE.Service.Interfaces
     public interface IPaymentService
     {
         Task<PaymentDto> CreatePaymentAsync(CreatePaymentRequest request, int callerCompanyId);
-        Task<PaymentDto> MarkPaymentSuccessAsync(int paymentId, int callerCompanyId);
         Task<PaymentStatusResult> GetPaymentStatusAsync(int companyId, int callerCompanyId);
-        Task CheckWriteAccessAsync(int companyId);
         Task<MomoAtmPaymentUrlResult> CreateMomoAtmPaymentUrlAsync(int paymentId, string? orderInfo, int callerCompanyId);
         Task<MomoAtmCallbackProcessResult> ProcessMomoAtmCallbackAsync(MomoAtmCallbackRequest request, bool isIpn);
     }
@@ -13,7 +11,8 @@ namespace Storix_BE.Service.Interfaces
     public sealed record CreatePaymentRequest(
         int CompanyId,
         decimal Amount,
-        string PaymentMethod
+        string PaymentMethod,
+        string PlanType
     );
 
     public sealed record PaymentDto(
@@ -22,6 +21,8 @@ namespace Storix_BE.Service.Interfaces
         string PaymentStatus,
         decimal Amount,
         string PaymentMethod,
+        string? PlanType,
+        int? SubscriptionId,
         DateTime? PaidAt,
         DateTime CreatedAt,
         DateTime? UpdatedAt
@@ -34,6 +35,7 @@ namespace Storix_BE.Service.Interfaces
         int? PaymentId,
         decimal? Amount,
         string? PaymentMethod,
+        string? PlanType,
         DateTime? PaidAt
     );
 

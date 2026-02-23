@@ -62,6 +62,24 @@ namespace Storix_BE.Repository.Implementation
                 .ConfigureAwait(false);
         }
 
+        public async Task<CompanyPayment?> GetByIdempotencyKeyAsync(string idempotencyKey)
+        {
+            return await _context.CompanyPayments
+                .FirstOrDefaultAsync(p => p.IdempotencyKey == idempotencyKey)
+                .ConfigureAwait(false);
+        }
+
+        public async Task<List<CompanyPayment>> GetByCompanyAsync(int companyId)
+        {
+            return await _context.CompanyPayments
+                .AsNoTracking()
+                .Where(p => p.CompanyId == companyId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ThenByDescending(p => p.Id)
+                .ToListAsync()
+                .ConfigureAwait(false);
+        }
+
         public async Task<CompanyPayment> CreateAsync(CompanyPayment payment)
         {
             _context.CompanyPayments.Add(payment);

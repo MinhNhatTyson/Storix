@@ -18,19 +18,17 @@ namespace Storix_BE.API.Controllers
             _paymentService = paymentService;
         }
 
+        /// <summary>Tạo payment record PENDING cho một gói subscription.</summary>
         [HttpPost]
         [Authorize(Roles = "2")]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentRequest request)
         {
             if (request == null)
-            {
-                return BadRequest(new { message = "Request cannot be null." });
-            }
+                return BadRequest(new { message = "Request không được null." });
+
             var callerCompanyId = GetCompanyIdFromToken();
             if (!callerCompanyId.HasValue)
-            {
-                return Unauthorized(new { message = "Missing CompanyId in token." });
-            }
+                return Unauthorized(new { message = "Thiếu CompanyId trong token." });
 
             try
             {
@@ -43,44 +41,17 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpPut("{id:int}/success")]
-        [Authorize(Roles = "2")]
-        public async Task<IActionResult> MarkPaymentSuccess(int id)
-        {
-            if (id <= 0)
-            {
-                return BadRequest(new { message = "Invalid payment id." });
-            }
-            var callerCompanyId = GetCompanyIdFromToken();
-            if (!callerCompanyId.HasValue)
-            {
-                return Unauthorized(new { message = "Missing CompanyId in token." });
-            }
-
-            try
-            {
-                var payment = await _paymentService.MarkPaymentSuccessAsync(id, callerCompanyId.Value);
-                return Ok(payment);
-            }
-            catch (BusinessRuleException ex)
-            {
-                return MapPaymentException(ex);
-            }
-        }
-
+        /// <summary>Lấy trạng thái payment mới nhất của company.</summary>
         [HttpGet("status")]
         [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetPaymentStatus([FromQuery(Name = "company_id")] int companyId)
         {
             if (companyId <= 0)
-            {
-                return BadRequest(new { message = "company_id must be a positive integer." });
-            }
+                return BadRequest(new { message = "company_id phải là số nguyên dương." });
+
             var callerCompanyId = GetCompanyIdFromToken();
             if (!callerCompanyId.HasValue)
-            {
-                return Unauthorized(new { message = "Missing CompanyId in token." });
-            }
+                return Unauthorized(new { message = "Thiếu CompanyId trong token." });
 
             try
             {
@@ -93,19 +64,17 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpPost("{id:int}/momo/atm-url")]
+        /// <summary>Lấy MoMo ATM payment URL để redirect user đến trang thanh toán.</summary>
+        [HttpPost("{id:int}/momo/url")]
         [Authorize(Roles = "2")]
         public async Task<IActionResult> CreateMomoAtmPaymentUrl(int id, [FromBody] CreateMomoAtmUrlRequest? request)
         {
             if (id <= 0)
-            {
-                return BadRequest(new { message = "Invalid payment id." });
-            }
+                return BadRequest(new { message = "Payment id không hợp lệ." });
+
             var callerCompanyId = GetCompanyIdFromToken();
             if (!callerCompanyId.HasValue)
-            {
-                return Unauthorized(new { message = "Missing CompanyId in token." });
-            }
+                return Unauthorized(new { message = "Thiếu CompanyId trong token." });
 
             try
             {
@@ -118,22 +87,29 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpGet("momo/atm/callback")]
+        /// <summary>
+        /// MoMo return URL - CHỈ dùng để redirect user về frontend sau khi thanh toán.
+        /// KHÔNG cập nhật database. Trạng thái thanh toán thực sự được xử lý bởi IPN endpoint.
+        /// </summary>
+        [HttpGet("momo/return")]
         [AllowAnonymous]
-        public async Task<IActionResult> HandleMomoAtmCallback([FromQuery] MomoAtmCallbackRequest request)
+        public IActionResult HandleMomoAtmReturn([FromQuery] MomoAtmCallbackRequest request)
         {
-            try
+            // Không xử lý logic ở đây - chỉ redirect về frontend
+            return Ok(new
             {
-                var result = await _paymentService.ProcessMomoAtmCallbackAsync(request, false);
-                return Ok(result);
-            }
-            catch (BusinessRuleException ex)
-            {
-                return MapPaymentException(ex);
-            }
+                message = "Cảm ơn bạn đã thanh toán. Vui lòng chờ xác nhận từ hệ thống.",
+                orderId = request.OrderId,
+                resultCode = request.ResultCode
+            });
         }
 
-        [HttpPost("momo/atm/ipn")]
+        /// <summary>
+        /// MoMo IPN webhook endpoint.
+        /// Đây là nguồn sự thật duy nhất để cập nhật trạng thái thanh toán.
+        /// AllowAnonymous vì MoMo server gọi trực tiếp. Signature được validate bên trong.
+        /// </summary>
+        [HttpPost("momo/ipn")]
         [AllowAnonymous]
         public async Task<IActionResult> HandleMomoAtmIpn([FromBody] MomoAtmCallbackRequest request)
         {
@@ -174,9 +150,7 @@ namespace Storix_BE.API.Controllers
         {
             var companyIdStr = User.FindFirst("CompanyId")?.Value;
             if (string.IsNullOrWhiteSpace(companyIdStr))
-            {
                 companyIdStr = User.FindFirst(ClaimTypes.GroupSid)?.Value;
-            }
             return int.TryParse(companyIdStr, out var companyId) ? companyId : null;
         }
     }

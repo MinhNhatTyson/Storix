@@ -1,5 +1,6 @@
 
-
+using Storix_BE.API.BackgroundJobs;
+using Storix_BE.API.Filters;
 using Storix_BE.Service.Implementation;
 using Storix_BE.Service.Interfaces;
 using Storix_BE.Service.Configuration;
@@ -21,10 +22,18 @@ namespace Storix_BE.API.Configuration
             services.AddScoped<ISupplierService, SupplierService>();
             services.AddScoped<IInventoryOutboundService, InventoryOutboundService>();
             services.AddScoped<IPaymentService, PaymentService>();
+            services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IReportingService, ReportingService>();
             services.AddScoped<IStockCountService, StockCountService>();
             services.AddTransient<IImageService, ImageService>();
             services.AddTransient<IEmailService, EmailService>();
+
+            // Filter kiểm tra subscription (Scoped vì phụ thuộc ISubscriptionService)
+            services.AddScoped<SubscriptionAccessFilter>();
+
+            // Background job tự động expire subscriptions mỗi giờ
+            services.AddHostedService<SubscriptionExpiryJob>();
+
             return services;
         }
     }

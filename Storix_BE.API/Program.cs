@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Storix_BE.API.Configuration;
+using Storix_BE.API.Filters;
 using Storix_BE.Domain.Context;
 using Storix_BE.Service.Implementation;
 using System.Text.Json.Serialization;
@@ -42,6 +43,7 @@ builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddControllers(options =>
 {
     options.SuppressAsyncSuffixInActionNames = false;
+    options.Filters.AddService<SubscriptionAccessFilter>();
 });
 
 /*builder.Services.AddDatabaseConfiguration(config);*/
