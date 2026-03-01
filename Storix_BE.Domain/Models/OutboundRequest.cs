@@ -16,11 +16,12 @@ public partial class OutboundRequest
     public string? Destination { get; set; }
 
     public string? Status { get; set; }
-    public double? TotalPrice { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? ApprovedAt { get; set; }
+
+    public double? TotalPrice { get; set; }
 
     public virtual User? ApprovedByNavigation { get; set; }
 

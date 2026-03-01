@@ -371,6 +371,8 @@ public partial class StorixDbContext : DbContext
             entity.ToTable("nav_node");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Radius).HasColumnName("radius");
+            entity.Property(e => e.Side).HasColumnName("side");
             entity.Property(e => e.Type)
                 .HasColumnType("character varying")
                 .HasColumnName("type");
@@ -428,9 +430,9 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.OutboundOrderId).HasColumnName("outbound_order_id");
             entity.Property(e => e.OutboundRequestId).HasColumnName("outbound_request_id");
+            entity.Property(e => e.Price).HasColumnName("price");
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Quantity).HasColumnName("quantity");
-            entity.Property(e => e.Price).HasColumnName("price");
 
             entity.HasOne(d => d.OutboundOrder).WithMany(p => p.OutboundOrderItems)
                 .HasForeignKey(d => d.OutboundOrderId)
@@ -822,11 +824,13 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
+            entity.Property(e => e.Height).HasColumnName("height");
             entity.Property(e => e.Image)
                 .HasColumnType("character varying")
                 .HasColumnName("image");
             entity.Property(e => e.TypeId).HasColumnName("type_id");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+            entity.Property(e => e.Width).HasColumnName("width");
 
             entity.HasOne(d => d.Type).WithMany(p => p.StorageZones)
                 .HasForeignKey(d => d.TypeId)
