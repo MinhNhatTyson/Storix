@@ -169,10 +169,9 @@ namespace Storix_BE.Service.Implementation
 
             return await _assignmentRepository.UpdateRoleInAssignmentsAsync(userId, roleInWarehouse);
         }
-        public async Task<Warehouse> CreateWarehouseAsync(int companyId, int callerRoleId, CreateWarehouseRequest request)
+        public async Task<Warehouse> CreateWarehouseAsync(int companyId, CreateWarehouseRequest request)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            EnsureCompanyAdministratorAsync(callerRoleId);
             if (request == null) throw new InvalidOperationException("Request is required.");
 
             var warehouse = new Warehouse

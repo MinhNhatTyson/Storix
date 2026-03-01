@@ -12,14 +12,10 @@ namespace Storix_BE.Service.Interfaces
         Task<bool> UnassignWarehouseAsync(int companyId, int callerRoleId, int userId, int warehouseId);
         Task<int> CountAssignmentsByUserAsync(int userId);
         Task<int> UpdateRoleInAssignmentsAsync(int userId, string roleInWarehouse);
-
-        // Create a new warehouse with zones, shelves, nodes, edges etc.
-        Task<Warehouse> CreateWarehouseAsync(int companyId, int callerRoleId, CreateWarehouseRequest request);
+        Task<Warehouse> CreateWarehouseAsync(int companyId, CreateWarehouseRequest request);
     }
 
     public sealed record AssignWarehouseRequest(int UserId, int WarehouseId);
-
-    // DTOs for create warehouse request mapping to the JSON sample
     public sealed record CreateWarehouseRequest(
         string? Name,
         string? Description,
