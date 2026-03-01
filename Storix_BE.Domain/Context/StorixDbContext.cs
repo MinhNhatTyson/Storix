@@ -596,6 +596,10 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Quantity).HasColumnName("quantity");
 
+            // DB-first schema currently does not contain these columns.
+            entity.Ignore(e => e.PricingMethod);
+            entity.Ignore(e => e.CostPrice);
+
             entity.HasOne(d => d.OutboundOrder).WithMany(p => p.OutboundOrderItems)
                 .HasForeignKey(d => d.OutboundOrderId)
                 .HasConstraintName("fk_outbound_order_items_outbound_order_id");
@@ -632,6 +636,10 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("status");
             entity.Property(e => e.TotalPrice).HasColumnName("total_price");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+
+            // DB-first schema currently does not contain these columns.
+            entity.Ignore(e => e.Reason);
+            entity.Ignore(e => e.ReferenceCode);
 
             entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.OutboundRequestApprovedByNavigations)
                 .HasForeignKey(d => d.ApprovedBy)

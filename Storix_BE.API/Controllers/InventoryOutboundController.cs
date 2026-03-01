@@ -159,7 +159,7 @@ namespace Storix_BE.API.Controllers
                 var authError = EnsureRole(3, "Only Manager (roleId=3) can confirm outbound orders.");
                 if (authError != null) return authError;
 
-                var ticket = await _service.ConfirmOutboundOrderAsync(ticketId, payload.PerformedBy);
+                var ticket = await _service.ConfirmOutboundOrderAsync(ticketId, payload.PerformedBy, payload.Allocations);
                 return Ok(ticket);
             }
             catch (InvalidOperationException ex)

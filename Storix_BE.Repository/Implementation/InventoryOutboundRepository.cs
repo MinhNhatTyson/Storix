@@ -360,8 +360,14 @@ namespace Storix_BE.Repository.Implementation
             return order;
         }
 
-        public async Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy)
+        public async Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy, IEnumerable<(int ProductId, int BatchId, int Quantity)> allocations)
         {
+            if (allocations == null) throw new ArgumentNullException(nameof(allocations));
+
+            var allocationList = allocations.ToList();
+            if (!allocationList.Any())
+                throw new InvalidOperationException("Allocations are required for specific identification costing.");
+
             var order = await _context.OutboundOrders
                 .Include(o => o.OutboundOrderItems)
                 .FirstOrDefaultAsync(o => o.Id == outboundOrderId)
@@ -374,20 +380,48 @@ namespace Storix_BE.Repository.Implementation
                 throw new InvalidOperationException("OutboundOrder must specify WarehouseId to update inventory.");
 
             await EnsureWarehouseActiveAsync(order.WarehouseId.Value).ConfigureAwait(false);
-
             await EnsureManagerPerformerAsync(performedBy).ConfigureAwait(false);
 
             if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Outbound order is already completed.");
 
-            var productIds = order.OutboundOrderItems
-                .Where(i => i.ProductId.HasValue)
-                .Select(i => i.ProductId!.Value)
-                .Distinct()
-                .ToList();
+            var orderItems = order.OutboundOrderItems.Where(i => i.ProductId.HasValue && i.Quantity.HasValue).ToList();
+            if (!orderItems.Any())
+                throw new InvalidOperationException("Outbound order has no valid items.");
+
+            var orderProductIds = orderItems.Select(i => i.ProductId!.Value).Distinct().ToHashSet();
+            var allocProductIds = allocationList.Select(a => a.ProductId).Distinct().ToHashSet();
+            if (!orderProductIds.SetEquals(allocProductIds))
+                throw new InvalidOperationException("Allocations must cover exactly all products in outbound order.");
+
+            foreach (var productId in orderProductIds)
+            {
+                var required = orderItems.Where(i => i.ProductId == productId).Sum(i => i.Quantity ?? 0);
+                var allocated = allocationList.Where(a => a.ProductId == productId).Sum(a => a.Quantity);
+                if (required != allocated)
+                    throw new InvalidOperationException($"Allocated quantity mismatch for ProductId {productId}. Required: {required}, Allocated: {allocated}.");
+            }
+
+            var productIds = orderProductIds.ToList();
+            var batchIds = allocationList.Select(a => a.BatchId).Distinct().ToList();
 
             var inventories = await _context.Inventories
                 .Where(i => i.WarehouseId == order.WarehouseId && i.ProductId.HasValue && productIds.Contains(i.ProductId.Value))
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var inboundBatchRows = await _context.InboundOrderItems
+                .Include(i => i.InboundOrder)
+                .Where(i => i.ProductId.HasValue && productIds.Contains(i.ProductId.Value) &&
+                            i.InboundOrderId.HasValue && batchIds.Contains(i.InboundOrderId.Value) &&
+                            i.InboundOrder != null && i.InboundOrder.WarehouseId == order.WarehouseId)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var outboundBatchTx = await _context.InventoryTransactions
+                .AsNoTracking()
+                .Where(t => t.WarehouseId == order.WarehouseId && t.ProductId.HasValue && productIds.Contains(t.ProductId.Value) &&
+                            t.TransactionType != null && t.TransactionType.StartsWith("OutboundSpecific:"))
                 .ToListAsync()
                 .ConfigureAwait(false);
 
@@ -396,32 +430,58 @@ namespace Storix_BE.Repository.Implementation
             var oldStatusForHistory = order.Status;
             try
             {
-                foreach (var item in order.OutboundOrderItems)
+                foreach (var alloc in allocationList)
                 {
-                    if (!item.ProductId.HasValue || !item.Quantity.HasValue || item.Quantity <= 0)
-                        throw new InvalidOperationException("OutboundOrder items must have ProductId and Quantity > 0.");
+                    if (alloc.ProductId <= 0 || alloc.BatchId <= 0 || alloc.Quantity <= 0)
+                        throw new InvalidOperationException("Each allocation must have ProductId > 0, BatchId > 0 and Quantity > 0.");
 
-                    var inventory = inventories.FirstOrDefault(i => i.ProductId == item.ProductId);
-                    if (inventory == null || (inventory.Quantity ?? 0) < item.Quantity)
+                    var batchRow = inboundBatchRows.FirstOrDefault(r => r.ProductId == alloc.ProductId && r.InboundOrderId == alloc.BatchId);
+                    if (batchRow == null)
+                        throw new InvalidOperationException($"Batch {alloc.BatchId} for ProductId {alloc.ProductId} not found in the same warehouse.");
+
+                    var batchReceived = batchRow.ReceivedQuantity ?? 0;
+                    var alreadyIssuedFromBatch = outboundBatchTx
+                        .Where(t => t.ProductId == alloc.ProductId && string.Equals(t.TransactionType, $"OutboundSpecific:{alloc.BatchId}", StringComparison.OrdinalIgnoreCase))
+                        .Sum(t => Math.Abs(t.QuantityChange ?? 0));
+
+                    var batchRemaining = batchReceived - alreadyIssuedFromBatch;
+                    if (alloc.Quantity > batchRemaining)
+                        throw new InvalidOperationException($"Batch {alloc.BatchId} for ProductId {alloc.ProductId} has only {batchRemaining} remaining, cannot issue {alloc.Quantity}.");
+
+                    var inventory = inventories.FirstOrDefault(i => i.ProductId == alloc.ProductId);
+                    if (inventory == null || (inventory.Quantity ?? 0) < alloc.Quantity)
                     {
                         var available = inventory?.Quantity ?? 0;
-                        throw new InvalidOperationException($"Insufficient stock for ProductId {item.ProductId}. Available: {available}, Requested: {item.Quantity}");
+                        throw new InvalidOperationException($"Insufficient stock for ProductId {alloc.ProductId}. Available: {available}, Requested: {alloc.Quantity}");
                     }
 
-                    inventory.Quantity = (inventory.Quantity ?? 0) - item.Quantity;
+                    var lineCost = batchRow.Price ?? 0;
+                    var discount = batchRow.Discount ?? 0;
+                    if (discount < 0) discount = 0;
+                    if (discount > 100) discount = 100;
+                    var unitCost = lineCost - (lineCost * (discount / 100.0));
+                    if (unitCost < 0) unitCost = 0;
+
+                    inventory.Quantity = (inventory.Quantity ?? 0) - alloc.Quantity;
                     inventory.LastUpdated = now;
 
-                    var transaction = new InventoryTransaction
+                    _context.InventoryTransactions.Add(new InventoryTransaction
                     {
                         WarehouseId = order.WarehouseId,
-                        ProductId = item.ProductId,
-                        TransactionType = "Outbound",
-                        QuantityChange = -item.Quantity,
+                        ProductId = alloc.ProductId,
+                        TransactionType = $"OutboundSpecific:{alloc.BatchId}",
+                        QuantityChange = -alloc.Quantity,
                         ReferenceId = order.Id,
                         PerformedBy = performedBy,
                         CreatedAt = now
-                    };
-                    _context.InventoryTransactions.Add(transaction);
+                    });
+
+                    var matchingOrderItems = orderItems.Where(i => i.ProductId == alloc.ProductId).ToList();
+                    foreach (var oi in matchingOrderItems)
+                    {
+                        oi.PricingMethod = "SpecificIdentification";
+                        oi.CostPrice = unitCost;
+                    }
                 }
 
                 order.Status = "Completed";
@@ -435,7 +495,6 @@ namespace Storix_BE.Repository.Implementation
                 throw;
             }
 
-            // Best-effort audit logging after successful confirm.
             try
             {
                 _context.OutboundOrderStatusHistories.Add(new OutboundOrderStatusHistory
