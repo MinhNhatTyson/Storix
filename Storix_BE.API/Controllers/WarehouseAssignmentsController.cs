@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Storix_BE.API.DTO;
+using Storix_BE.Domain.Exception;
 using Storix_BE.Domain.Models;
 using Storix_BE.Service.Interfaces;
 using System.Linq;
 using AssignWarehouseRequest = Storix_BE.Service.Interfaces.AssignWarehouseRequest;
+using CreateWarehouseRequest = Storix_BE.Service.Interfaces.CreateWarehouseRequest;
 
 namespace Storix_BE.API.Controllers
 {
@@ -266,6 +268,41 @@ namespace Storix_BE.API.Controllers
                         assignment.Warehouse.Name,
                         assignment.Warehouse.Status)
             );
+        }
+        /// <summary>
+        /// Create new warehouse (Company Administrator only). Route: POST /api/company-warehouses/{companyId}
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [Route("~/api/create-company-warehouses/{companyId:int}/")]
+        public async Task<IActionResult> CreateWarehouse(int companyId, [FromBody] CreateWarehouseRequest request)
+        {
+            if (companyId <= 0)
+                return BadRequest(new { message = "CompanyId is required." });
+            if (request == null)
+                return BadRequest(new { message = "Request body is required." });
+
+            try
+            {
+                var warehouse = await _assignmentService.CreateWarehouseAsync(companyId, request);
+                return Ok(new { Id = warehouse.Id });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (BusinessRuleException ex)
+            {
+                return BadRequest(new { code = ex.Code, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }
