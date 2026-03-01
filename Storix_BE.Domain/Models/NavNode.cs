@@ -19,6 +19,8 @@ public partial class NavNode
 
     public string? Side { get; set; }
 
+    public string? IdCode { get; set; }
+
     public virtual ICollection<NavEdge> NavEdgeNodeFromNavigations { get; set; } = new List<NavEdge>();
 
     public virtual ICollection<NavEdge> NavEdgeNodeToNavigations { get; set; } = new List<NavEdge>();

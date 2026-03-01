@@ -16,6 +16,7 @@ namespace Storix_BE.Repository.Interfaces
         Task<int> UpdateRoleInAssignmentsAsync(int userId, string roleInWarehouse);
         Task<int> AddAssignmentAsync(WarehouseAssignment assignment);
         Task<bool> RemoveAssignmentAsync(WarehouseAssignment assignment);
+        Task<Warehouse> CreateWarehouseAsync(Warehouse warehouse);
 
         //I need a method to create a new warehouse, the json body will be like this:
         /*                                    
@@ -25,12 +26,11 @@ namespace Storix_BE.Repository.Interfaces
               "zones": [
                 {
                   "id": "z-1771945437309",
-                  "name": "Zone 1",
+                  "code": "Zone 1",
                   "x": 4.552142735600331,
                   "y": 4.7948802662302965,
                   "width": 329.7806830231329,
                   "height": 368.54558796187376,
-                  "color": "rgba(59, 130, 246, 0.2)",
                   "shelves": [
                     {
                       "id": "s-1771945440908",
@@ -68,37 +68,37 @@ namespace Storix_BE.Repository.Interfaces
                       "levels": [
                         {
                           "id": "lvl-1771945679907",
-                          "name": "L-1",
+                          "code": "L-1",
                           "bins": [
                             {
                               "id": "bin-1771945683631-0.8081820228199444",
-                              "name": "B-1"
+                              "code": "B-1"
                             },
                             {
                               "id": "bin-1771945684407-0.4161617982786775",
-                              "name": "B-2"
+                              "code": "B-2"
                             },
                             {
                               "id": "bin-1771945684685-0.5073059163791037",
-                              "name": "B-3"
+                              "code": "B-3"
                             }
                           ]
                         },
                         {
                           "id": "lvl-1771945682346",
-                          "name": "L-2",
+                          "code": "L-2",
                           "bins": [
                             {
                               "id": "bin-1771945685965-0.31038331362217575",
-                              "name": "B-1"
+                              "code": "B-1"
                             },
                             {
                               "id": "bin-1771945686334-0.1643512713262686",
-                              "name": "B-2"
+                              "code": "B-2"
                             },
                             {
                               "id": "bin-1771945686685-0.7434495456179145",
-                              "name": "B-3"
+                              "code": "B-3"
                             }
                           ]
                         }
@@ -175,43 +175,43 @@ namespace Storix_BE.Repository.Interfaces
                       "levels": [
                         {
                           "id": "lvl-1771945691471",
-                          "name": "L-1",
+                          "code": "L-1",
                           "bins": [
                             {
                               "id": "bin-1771945692864-0.05414678050508026",
-                              "name": "B-1"
+                              "code": "B-1"
                             }
                           ]
                         },
                         {
                           "id": "lvl-1771945691799",
-                          "name": "L-2",
+                          "code": "L-2",
                           "bins": [
                             {
                               "id": "bin-1771945693987-0.3546264739789119",
-                              "name": "B-1"
+                              "code": "B-1"
                             },
                             {
                               "id": "bin-1771945694121-0.4869033437470244",
-                              "name": "B-2"
+                              "code": "B-2"
                             }
                           ]
                         },
                         {
                           "id": "lvl-1771945692183",
-                          "name": "L-3",
+                          "code": "L-3",
                           "bins": [
                             {
                               "id": "bin-1771945695020-0.2910421301049687",
-                              "name": "B-1"
+                              "code": "B-1"
                             },
                             {
                               "id": "bin-1771945695275-0.5278909521443125",
-                              "name": "B-2"
+                              "code": "B-2"
                             },
                             {
                               "id": "bin-1771945695562-0.5933683689145852",
-                              "name": "B-3"
+                              "code": "B-3"
                             }
                           ]
                         }
@@ -261,21 +261,18 @@ namespace Storix_BE.Repository.Interfaces
                   "x": 29.236489999999804,
                   "y": 16.39041999999995,
                   "radius": 8,
-                  "color": "#f59e0b"
                 },
                 {
                   "id": "n-1771945559918",
                   "x": 153.2364899999998,
                   "y": 14.39041999999995,
                   "radius": 8,
-                  "color": "#f59e0b"
                 },
                 {
                   "id": "n-1771945564361",
                   "x": 156.2364899999998,
                   "y": 181.39041999999995,
                   "radius": 8,
-                  "color": "#f59e0b"
                 },
                 ...
               ],

@@ -347,6 +347,7 @@ public partial class StorixDbContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Distance).HasColumnName("distance");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.NodeFrom).HasColumnName("node_from");
             entity.Property(e => e.NodeTo).HasColumnName("node_to");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
@@ -371,6 +372,7 @@ public partial class StorixDbContext : DbContext
             entity.ToTable("nav_node");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.Radius).HasColumnName("radius");
             entity.Property(e => e.Side).HasColumnName("side");
             entity.Property(e => e.Type)
@@ -613,6 +615,7 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.Height).HasColumnName("height");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.Image)
                 .HasColumnType("character varying")
                 .HasColumnName("image");
@@ -636,6 +639,7 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Code)
                 .HasColumnType("character varying")
                 .HasColumnName("code");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.ShelfId).HasColumnName("shelf_id");
 
             entity.HasOne(d => d.Shelf).WithMany(p => p.ShelfLevels)
@@ -654,6 +658,7 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("code");
             entity.Property(e => e.Height).HasColumnName("height");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.InventoryId).HasColumnName("inventory_id");
             entity.Property(e => e.LevelId).HasColumnName("level_id");
             entity.Property(e => e.Status).HasColumnName("status");
@@ -675,6 +680,7 @@ public partial class StorixDbContext : DbContext
             entity.ToTable("shelf_node");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.NodeId).HasColumnName("node_id");
             entity.Property(e => e.ShelfId).HasColumnName("shelf_id");
 
@@ -825,6 +831,7 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.Height).HasColumnName("height");
+            entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.Image)
                 .HasColumnType("character varying")
                 .HasColumnName("image");

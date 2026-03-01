@@ -21,6 +21,8 @@ public partial class StorageZone
 
     public double? Height { get; set; }
 
+    public string? IdCode { get; set; }
+
     public virtual ICollection<Shelf> Shelves { get; set; } = new List<Shelf>();
 
     public virtual ProductType? Type { get; set; }
