@@ -32,7 +32,7 @@ namespace Storix_BE.Repository.Implementation
             if (!request.RequestedBy.HasValue || request.RequestedBy <= 0)
                 throw new InvalidOperationException("RequestedBy is required for outbound requests.");
 
-            await EnsureManagerRequesterAsync(request.RequestedBy.Value).ConfigureAwait(false);
+            await EnsureStaffRequesterAsync(request.RequestedBy.Value).ConfigureAwait(false);
 
             if (request.OutboundOrderItems == null || !request.OutboundOrderItems.Any())
                 throw new InvalidOperationException("OutboundRequest must contain at least one OutboundOrderItem.");
@@ -121,7 +121,7 @@ namespace Storix_BE.Repository.Implementation
         {
             if (string.IsNullOrWhiteSpace(status)) throw new ArgumentException("Status is required.", nameof(status));
 
-            await EnsureCompanyAdministratorApproverAsync(approverId).ConfigureAwait(false);
+            await EnsureManagerApproverAsync(approverId).ConfigureAwait(false);
 
             var outbound = await _context.OutboundRequests
                 .FirstOrDefaultAsync(r => r.Id == requestId)
@@ -139,7 +139,7 @@ namespace Storix_BE.Repository.Implementation
             return outbound;
         }
 
-        public async Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note)
+        public async Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note, string? pricingMethod = "LastPurchasePrice")
         {
             var outboundRequest = await _context.OutboundRequests
                 .Include(r => r.OutboundOrderItems)
@@ -198,13 +198,21 @@ namespace Storix_BE.Repository.Implementation
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
             };
 
+            var method = string.IsNullOrWhiteSpace(pricingMethod) ? "LastPurchasePrice" : pricingMethod.Trim();
+
             foreach (var reqItem in outboundRequest.OutboundOrderItems)
             {
+                var costPrice = await ResolveCostPriceAsync(reqItem.ProductId, method, outboundRequest.CreatedAt)
+                    .ConfigureAwait(false);
+
                 var orderItem = new OutboundOrderItem
                 {
                     ProductId = reqItem.ProductId,
                     Quantity = reqItem.Quantity,
-                    OutboundRequestId = outboundRequest.Id
+                    OutboundRequestId = outboundRequest.Id,
+                    PricingMethod = method,
+                    CostPrice = costPrice,
+                    Price = reqItem.Price
                 };
                 outboundOrder.OutboundOrderItems.Add(orderItem);
             }
@@ -449,6 +457,40 @@ namespace Storix_BE.Repository.Implementation
             return order;
         }
 
+        private async Task<double?> ResolveCostPriceAsync(int? productId, string pricingMethod, DateTime? asOf)
+        {
+            if (!productId.HasValue || productId.Value <= 0) return null;
+
+            var method = string.IsNullOrWhiteSpace(pricingMethod) ? "LastPurchasePrice" : pricingMethod.Trim();
+
+            // SpecificIdentification: use the latest recorded inbound price snapshot as product-specific identified cost.
+            // (If your domain later adds lot/serial mapping, replace this with lot-level cost lookup.)
+            var latestPrice = await _context.ProductPrices
+                .AsNoTracking()
+                .Where(p => p.ProductId == productId.Value)
+                .OrderByDescending(p => p.Date)
+                .ThenByDescending(p => p.Id)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            if (latestPrice == null || !latestPrice.Price.HasValue)
+                return null;
+
+            var lineDiscount = latestPrice.LineDiscount ?? 0;
+            if (lineDiscount < 0) lineDiscount = 0;
+            if (lineDiscount > 100) lineDiscount = 100;
+
+            var basePrice = latestPrice.Price.Value;
+            var effective = basePrice - (basePrice * (lineDiscount / 100.0));
+            if (effective < 0) effective = 0;
+
+            if (string.Equals(method, "SpecificIdentification", StringComparison.OrdinalIgnoreCase))
+                return effective;
+
+            // LastPurchasePrice fallback (same source currently, explicit branch for readability/extensibility)
+            return effective;
+        }
+
         private static bool IsInactiveStatus(string? status)
         {
             return string.Equals(status, "inactive", StringComparison.OrdinalIgnoreCase);
@@ -463,7 +505,7 @@ namespace Storix_BE.Repository.Implementation
                 throw new InvalidOperationException($"Warehouse with id {warehouseId} is inactive.");
         }
 
-        private async Task EnsureManagerRequesterAsync(int requesterId)
+        private async Task EnsureStaffRequesterAsync(int requesterId)
         {
             var user = await _context.Users
                 .AsNoTracking()
@@ -473,8 +515,8 @@ namespace Storix_BE.Repository.Implementation
             if (user == null)
                 throw new InvalidOperationException($"User with id {requesterId} not found.");
 
-            if (!user.RoleId.HasValue || user.RoleId.Value != 3)
-                throw new InvalidOperationException("Only Manager can create outbound requests.");
+            if (!user.RoleId.HasValue || user.RoleId.Value != 4)
+                throw new InvalidOperationException("Only Staff can create outbound requests.");
         }
 
         private async Task EnsureManagerPerformerAsync(int performerId)
@@ -491,7 +533,7 @@ namespace Storix_BE.Repository.Implementation
                 throw new InvalidOperationException("Only Manager can confirm outbound orders.");
         }
 
-        private async Task EnsureCompanyAdministratorApproverAsync(int approverId)
+        private async Task EnsureManagerApproverAsync(int approverId)
         {
             var user = await _context.Users
                 .AsNoTracking()
@@ -507,8 +549,8 @@ namespace Storix_BE.Repository.Implementation
             if (user.RoleId.Value == 1)
                 throw new InvalidOperationException("Super Admin cannot approve outbound requests.");
 
-            if (user.RoleId.Value != 2)
-                throw new InvalidOperationException("Only Company Administrator can approve outbound requests.");
+            if (user.RoleId.Value != 3)
+                throw new InvalidOperationException("Only Manager can approve outbound requests.");
         }
 
         public async Task<List<OutboundRequest>> GetAllOutboundRequestsAsync(int companyId, int? warehouseId)

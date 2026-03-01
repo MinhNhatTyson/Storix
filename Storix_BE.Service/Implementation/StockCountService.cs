@@ -52,7 +52,8 @@ namespace Storix_BE.Service.Implementation
                     request.Name,
                     request.Type,
                     request.Description,
-                    request.ProductIds)
+                    request.ProductIds,
+                    request.AssignedTo)
                 .ConfigureAwait(false);
 
             return MapTicketDetail(ticket);
@@ -74,13 +75,34 @@ namespace Storix_BE.Service.Implementation
             return MapTicketDetail(ticket);
         }
 
-        public async Task<StockCountItemDto> UpdateCountedQuantityAsync(int companyId, int itemId, UpdateStockCountItemRequest request)
+        public async Task<StockCountItemDto> UpdateCountedQuantityAsync(int companyId, int callerUserId, int callerRoleId, int itemId, UpdateStockCountItemRequest request)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
+            if (callerUserId <= 0) throw new ArgumentException("Invalid caller user.", nameof(callerUserId));
             if (itemId <= 0) throw new ArgumentException("Invalid item.", nameof(itemId));
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (request.CountedQuantity < 0)
                 throw new ArgumentException("Counted quantity must be greater than or equal to 0.", nameof(request.CountedQuantity));
+
+            var itemBeforeUpdate = await _repo.GetItemByIdAsync(companyId, itemId).ConfigureAwait(false);
+            if (itemBeforeUpdate.StockCount == null)
+                throw new InvalidOperationException("Stock count item is not linked to a ticket.");
+
+            var ticketStatus = itemBeforeUpdate.StockCount.Status ?? string.Empty;
+            if (!string.Equals(ticketStatus, "Counting", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Counted quantity can only be updated when ticket status is 'Counting'.");
+
+            // Manager (roleId=3) can override; Staff (roleId=4) must be assigned to the ticket.
+            if (callerRoleId == 4)
+            {
+                var assignedTo = itemBeforeUpdate.StockCount.AssignedTo;
+                if (!assignedTo.HasValue || assignedTo.Value != callerUserId)
+                    throw new InvalidOperationException("You are not assigned to this stock count ticket.");
+            }
+            else if (callerRoleId != 3)
+            {
+                throw new InvalidOperationException("Only manager or assigned staff can update counted quantity.");
+            }
 
             var item = await _repo.UpdateCountedQuantityAsync(companyId, itemId, request.CountedQuantity, request.Description, request.Status)
                 .ConfigureAwait(false);
@@ -96,8 +118,8 @@ namespace Storix_BE.Service.Implementation
 
             var ticket = await _repo.GetTicketByIdAsync(companyId, ticketId).ConfigureAwait(false);
 
-            if (string.Equals(ticket.Status, "Approved", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Cannot run check for an already approved ticket.");
+            if (!string.Equals(ticket.Status, "Counting", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Run check is only allowed when ticket status is 'Counting'.");
 
             if (!ticket.WarehouseId.HasValue)
                 throw new InvalidOperationException("Ticket has no warehouse.");
@@ -166,6 +188,8 @@ namespace Storix_BE.Service.Implementation
                 report.CompletedAt = now;
                 report.ErrorMessage = null;
                 await _reportingRepo.UpdateReportAsync(report).ConfigureAwait(false);
+
+                await _repo.MarkTicketReadyForApprovalAsync(companyId, ticketId).ConfigureAwait(false);
 
                 // Return parsed json to match API contract.
                 var summary = ParseJson(report.SummaryJson);

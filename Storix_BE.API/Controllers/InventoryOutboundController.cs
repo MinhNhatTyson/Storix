@@ -22,7 +22,7 @@ namespace Storix_BE.API.Controllers
         {
             try
             {
-                var authError = EnsureRole(3, "Only Manager (roleId=3) can create outbound requests.");
+                var authError = EnsureRole(4, "Only Staff (roleId=4) can create outbound requests.");
                 if (authError != null) return authError;
 
                 var outboundRequest = await _service.CreateOutboundRequestAsync(request);
@@ -78,7 +78,7 @@ namespace Storix_BE.API.Controllers
         {
             try
             {
-                var authError = EnsureRole(2, "Only Company Administrator (roleId=2) can approve outbound requests.", "Super Admin (roleId=1) cannot approve outbound requests.");
+                var authError = EnsureRole(3, "Only Manager (roleId=3) can approve outbound requests.", "Super Admin (roleId=1) cannot approve outbound requests.");
                 if (authError != null) return authError;
 
                 var outboundRequest = await _service.UpdateOutboundRequestStatusAsync(id, request.ApproverId, request.Status);
@@ -106,7 +106,7 @@ namespace Storix_BE.API.Controllers
                 var authError = EnsureRole(3, "Only Manager (roleId=3) can create outbound tickets.");
                 if (authError != null) return authError;
 
-                var ticket = await _service.CreateOutboundOrderFromRequestAsync(requestId, payload.CreatedBy, payload.StaffId, payload.Note);
+                var ticket = await _service.CreateOutboundOrderFromRequestAsync(requestId, payload.CreatedBy, payload.StaffId, payload.Note, payload.PricingMethod);
                 return Ok(ticket);
             }
             catch (InvalidOperationException ex)

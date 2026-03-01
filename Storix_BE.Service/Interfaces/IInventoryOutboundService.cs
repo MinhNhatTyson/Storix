@@ -13,7 +13,7 @@ namespace Storix_BE.Service.Interfaces
 
         Task<OutboundRequest> UpdateOutboundRequestStatusAsync(int requestId, int approverId, string status);
 
-        Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note);
+        Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note, string? pricingMethod = "LastPurchasePrice");
 
         Task<OutboundOrder> UpdateOutboundOrderItemsAsync(int outboundOrderId, IEnumerable<UpdateOutboundOrderItemRequest> items);
 
@@ -33,13 +33,14 @@ namespace Storix_BE.Service.Interfaces
         int? WarehouseId,
         string? Destination,
         int RequestedBy,
-        IEnumerable<CreateOutboundOrderItemRequest> Items);
+        IEnumerable<CreateOutboundOrderItemRequest> Items,
+        string? Reason = null);
 
     public sealed record UpdateOutboundRequestStatusRequest(int ApproverId, string Status);
 
     public sealed record UpdateOutboundOrderItemRequest(int Id, int ProductId, int? Quantity);
 
-    public sealed record CreateOutboundOrderFromRequestRequest(int CreatedBy, int? StaffId, string? Note);
+    public sealed record CreateOutboundOrderFromRequestRequest(int CreatedBy, int? StaffId, string? Note, string? PricingMethod = "LastPurchasePrice");
 
     public sealed record ConfirmOutboundOrderRequest(int PerformedBy);
 
@@ -50,7 +51,7 @@ namespace Storix_BE.Service.Interfaces
 
     public sealed record OutboundUserDto(int Id, string? FullName, string? Email, string? Phone);
 
-    public sealed record OutboundOrderItemDto(int Id, int? ProductId, string? ProductName, int? Quantity, double? Price);
+    public sealed record OutboundOrderItemDto(int Id, int? ProductId, string? ProductName, int? Quantity, double? Price, double? CostPrice, string? PricingMethod);
 
     public sealed record OutboundRequestDto(
         int Id,
@@ -58,6 +59,8 @@ namespace Storix_BE.Service.Interfaces
         int? RequestedBy,
         int? ApprovedBy,
         string? Destination,
+        string? Reason,
+        string? ReferenceCode,
         string? Status,
         double? TotalPrice,
         DateTime? CreatedAt,
