@@ -8,13 +8,16 @@ namespace Storix_BE.API.Configuration
     {
         public static IServiceCollection AddRepositoryConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
-
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IWarehouseAssignmentRepository, WarehouseAssignmentRepository>();
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IInventoryInboundRepository, InventoryInboundRepository>();
             services.AddScoped<ISupplierRepository, SupplierRepository>();
             services.AddScoped<IInventoryOutboundRepository, InventoryOutboundRepository>();
+            services.AddScoped<IPaymentRepository, PaymentRepository>();
+            services.AddScoped<IReportingRepository, ReportingRepository>();
+            services.AddScoped<IStockCountRepository, StockCountRepository>();
+            services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
             return services;
         }
     }

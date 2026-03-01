@@ -41,6 +41,13 @@ namespace Storix_BE.Service.Implementation
             return value.HasValue && value.Value > 0 ? value.Value : null;
         }
 
+        public async Task<List<Warehouse>> GetWarehousesByCompanyAsync(int companyId, int callerRoleId)
+        {
+            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
+            EnsureCompanyAdministratorAsync(callerRoleId);
+            return await _assignmentRepository.GetWarehousesByCompanyIdAsync(companyId);
+        }
+
         public async Task<List<WarehouseAssignment>> GetAssignmentsByCompanyAsync(int companyId, int callerRoleId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");

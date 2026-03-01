@@ -17,7 +17,7 @@ namespace Storix_BE.Domain.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.2")
+                .HasAnnotation("ProductVersion", "9.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -57,6 +57,47 @@ namespace Storix_BE.Domain.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("activity_logs", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.AiRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<string>("ModelVersion")
+                        .HasColumnType("character varying")
+                        .HasColumnName("model_version");
+
+                    b.Property<string>("ParametersJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parameters_json");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Type")
+                        .HasColumnType("character varying")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("ai_runs_pkey");
+
+                    b.HasIndex("CompanyId");
+
+                    b.ToTable("ai_runs", (string)null);
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Company", b =>
@@ -110,6 +151,76 @@ namespace Storix_BE.Domain.Migrations
                     b.ToTable("companies", (string)null);
                 });
 
+            modelBuilder.Entity("Storix_BE.Domain.Models.CompanyPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasColumnType("character varying")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("MomoTransId")
+                        .HasColumnType("character varying")
+                        .HasColumnName("momo_trans_id");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("character varying")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("character varying")
+                        .HasColumnName("payment_status");
+
+                    b.Property<string>("PlanType")
+                        .HasColumnType("character varying")
+                        .HasColumnName("plan_type");
+
+                    b.Property<int?>("SubscriptionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("subscription_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("company_payments_pkey");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_company_payments_idempotency_key")
+                        .HasFilter("idempotency_key IS NOT NULL");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.ToTable("company_payments", (string)null);
+                });
+
             modelBuilder.Entity("Storix_BE.Domain.Models.InboundOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -135,6 +246,10 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("character varying")
                         .HasColumnName("reference_code");
 
+                    b.Property<int?>("StaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("staff_id");
+
                     b.Property<string>("Status")
                         .HasColumnType("character varying")
                         .HasColumnName("status");
@@ -154,6 +269,8 @@ namespace Storix_BE.Domain.Migrations
 
                     b.HasIndex("InboundRequestId");
 
+                    b.HasIndex("StaffId");
+
                     b.HasIndex("SupplierId");
 
                     b.HasIndex("WarehouseId");
@@ -170,6 +287,10 @@ namespace Storix_BE.Domain.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<double?>("Discount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("discount");
+
                     b.Property<int?>("ExpectedQuantity")
                         .HasColumnType("integer")
                         .HasColumnName("expected_quantity");
@@ -181,6 +302,10 @@ namespace Storix_BE.Domain.Migrations
                     b.Property<int?>("InboundRequestId")
                         .HasColumnType("integer")
                         .HasColumnName("inbound_request_id");
+
+                    b.Property<double?>("Price")
+                        .HasColumnType("double precision")
+                        .HasColumnName("price");
 
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer")
@@ -219,9 +344,29 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("approved_by");
 
+                    b.Property<string>("Code")
+                        .HasColumnType("text")
+                        .HasColumnName("code");
+
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<DateOnly?>("ExpectedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expected_date");
+
+                    b.Property<double?>("FinalPrice")
+                        .HasColumnType("double precision")
+                        .HasColumnName("final_price");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<double?>("OrderDiscount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("order_discount");
 
                     b.Property<int?>("RequestedBy")
                         .HasColumnType("integer")
@@ -234,6 +379,10 @@ namespace Storix_BE.Domain.Migrations
                     b.Property<int?>("SupplierId")
                         .HasColumnType("integer")
                         .HasColumnName("supplier_id");
+
+                    b.Property<double?>("TotalPrice")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_price");
 
                     b.Property<int?>("WarehouseId")
                         .HasColumnType("integer")
@@ -488,6 +637,8 @@ namespace Storix_BE.Domain.Migrations
 
                     b.HasIndex("CreatedBy");
 
+                    b.HasIndex("StaffId");
+
                     b.HasIndex("WarehouseId");
 
                     b.ToTable("outbound_orders", (string)null);
@@ -510,6 +661,10 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("outbound_request_id");
 
+                    b.Property<double?>("Price")
+                        .HasColumnType("double precision")
+                        .HasColumnName("price");
+
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer")
                         .HasColumnName("product_id");
@@ -528,6 +683,45 @@ namespace Storix_BE.Domain.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("outbound_order_items", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.OutboundOrderStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ChangedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("changed_at");
+
+                    b.Property<int?>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("NewStatus")
+                        .HasColumnType("character varying")
+                        .HasColumnName("new_status");
+
+                    b.Property<string>("OldStatus")
+                        .HasColumnType("character varying")
+                        .HasColumnName("old_status");
+
+                    b.Property<int>("OutboundOrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("outbound_order_id");
+
+                    b.HasKey("Id")
+                        .HasName("outbound_order_status_history_pkey");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("OutboundOrderId");
+
+                    b.ToTable("outbound_order_status_history", (string)null);
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.OutboundRequest", b =>
@@ -562,6 +756,10 @@ namespace Storix_BE.Domain.Migrations
                     b.Property<string>("Status")
                         .HasColumnType("character varying")
                         .HasColumnName("status");
+
+                    b.Property<double?>("TotalPrice")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_price");
 
                     b.Property<int?>("WarehouseId")
                         .HasColumnType("integer")
@@ -604,6 +802,10 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<string>("Image")
+                        .HasColumnType("text")
+                        .HasColumnName("image");
+
                     b.Property<string>("Name")
                         .HasColumnType("character varying")
                         .HasColumnName("name");
@@ -641,7 +843,7 @@ namespace Storix_BE.Domain.Migrations
                     b.ToTable("products", (string)null);
                 });
 
-            modelBuilder.Entity("Storix_BE.Domain.Models.ProductType", b =>
+            modelBuilder.Entity("Storix_BE.Domain.Models.ProductPrice", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -650,6 +852,42 @@ namespace Storix_BE.Domain.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<double?>("LineDiscount")
+                        .HasColumnType("double precision")
+                        .HasColumnName("line_discount");
+
+                    b.Property<double?>("Price")
+                        .HasColumnType("double precision")
+                        .HasColumnName("price");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_product_prices");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("product_prices", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ProductType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("nextval('types_id_seq'::regclass)");
+
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_id");
+
                     b.Property<string>("Name")
                         .HasColumnType("character varying")
                         .HasColumnName("name");
@@ -657,7 +895,136 @@ namespace Storix_BE.Domain.Migrations
                     b.HasKey("Id")
                         .HasName("types_pkey");
 
-                    b.ToTable("types", (string)null);
+                    b.HasIndex("CompanyId");
+
+                    b.ToTable("product_types", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ExpiredAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("expired_at");
+
+                    b.Property<bool?>("IsRevoked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_revoked");
+
+                    b.Property<string>("Token")
+                        .HasColumnType("text")
+                        .HasColumnName("token");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("refresh_tokens.id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.Report", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("DataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data_json");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("ParametersJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parameters_json");
+
+                    b.Property<string>("PdfContentHash")
+                        .HasColumnType("character varying")
+                        .HasColumnName("pdf_content_hash");
+
+                    b.Property<string>("PdfFileName")
+                        .HasColumnType("character varying")
+                        .HasColumnName("pdf_file_name");
+
+                    b.Property<DateTime?>("PdfGeneratedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("pdf_generated_at");
+
+                    b.Property<string>("PdfUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("pdf_url");
+
+                    b.Property<string>("ReportType")
+                        .HasColumnType("character varying")
+                        .HasColumnName("report_type");
+
+                    b.Property<string>("SchemaVersion")
+                        .HasColumnType("character varying")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("character varying")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SummaryJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("summary_json");
+
+                    b.Property<DateTime?>("TimeFrom")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("time_from");
+
+                    b.Property<DateTime?>("TimeTo")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("time_to");
+
+                    b.Property<int?>("WarehouseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("reports_pkey");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.ToTable("reports", (string)null);
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Role", b =>
@@ -1060,6 +1427,57 @@ namespace Storix_BE.Domain.Migrations
                     b.ToTable("storage_zones", (string)null);
                 });
 
+            modelBuilder.Entity("Storix_BE.Domain.Models.Subscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("PlanType")
+                        .IsRequired()
+                        .HasColumnType("character varying")
+                        .HasColumnName("plan_type");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("character varying")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("subscriptions_pkey");
+
+                    b.HasIndex("EndDate")
+                        .HasDatabaseName("ix_subscriptions_end_date");
+
+                    b.HasIndex("CompanyId", "Status")
+                        .HasDatabaseName("ix_subscriptions_company_id_status");
+
+                    b.ToTable("subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("Storix_BE.Domain.Models.Supplier", b =>
                 {
                     b.Property<int>("Id")
@@ -1189,6 +1607,10 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Avatar")
+                        .HasColumnType("text")
+                        .HasColumnName("avatar");
 
                     b.Property<int?>("CompanyId")
                         .HasColumnType("integer")
@@ -1349,10 +1771,42 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Storix_BE.Domain.Models.AiRun", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ai_runs_company_id");
+
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.CompanyPayment", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Company", "Company")
+                        .WithMany("CompanyPayments")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_company_payments_company_id");
+
+                    b.HasOne("Storix_BE.Domain.Models.Subscription", "Subscription")
+                        .WithMany("CompanyPayments")
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_company_payments_subscription_id");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Subscription");
+                });
+
             modelBuilder.Entity("Storix_BE.Domain.Models.InboundOrder", b =>
                 {
                     b.HasOne("Storix_BE.Domain.Models.User", "CreatedByNavigation")
-                        .WithMany("InboundOrders")
+                        .WithMany("InboundOrderCreatedByNavigations")
                         .HasForeignKey("CreatedBy")
                         .HasConstraintName("fk_inbound_orders_created_by");
 
@@ -1360,6 +1814,11 @@ namespace Storix_BE.Domain.Migrations
                         .WithMany("InboundOrders")
                         .HasForeignKey("InboundRequestId")
                         .HasConstraintName("fk_inbound_orders_inbound_request_id");
+
+                    b.HasOne("Storix_BE.Domain.Models.User", "Staff")
+                        .WithMany("InboundOrderStaffs")
+                        .HasForeignKey("StaffId")
+                        .HasConstraintName("fk_inbound_orders_staff_id");
 
                     b.HasOne("Storix_BE.Domain.Models.Supplier", "Supplier")
                         .WithMany("InboundOrders")
@@ -1374,6 +1833,8 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("CreatedByNavigation");
 
                     b.Navigation("InboundRequest");
+
+                    b.Navigation("Staff");
 
                     b.Navigation("Supplier");
 
@@ -1530,9 +1991,14 @@ namespace Storix_BE.Domain.Migrations
             modelBuilder.Entity("Storix_BE.Domain.Models.OutboundOrder", b =>
                 {
                     b.HasOne("Storix_BE.Domain.Models.User", "CreatedByNavigation")
-                        .WithMany("OutboundOrders")
+                        .WithMany("OutboundOrderCreatedByNavigations")
                         .HasForeignKey("CreatedBy")
                         .HasConstraintName("fk_outbound_orders_created_by");
+
+                    b.HasOne("Storix_BE.Domain.Models.User", "Staff")
+                        .WithMany("OutboundOrderStaffs")
+                        .HasForeignKey("StaffId")
+                        .HasConstraintName("fk_outbound_orders_staff_id");
 
                     b.HasOne("Storix_BE.Domain.Models.Warehouse", "Warehouse")
                         .WithMany("OutboundOrders")
@@ -1540,6 +2006,8 @@ namespace Storix_BE.Domain.Migrations
                         .HasConstraintName("fk_outbound_orders_warehouse_id");
 
                     b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("Staff");
 
                     b.Navigation("Warehouse");
                 });
@@ -1566,6 +2034,25 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("OutboundRequest");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.OutboundOrderStatusHistory", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.User", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .HasConstraintName("fk_outbound_order_status_history_changed_by_user_id");
+
+                    b.HasOne("Storix_BE.Domain.Models.OutboundOrder", "OutboundOrder")
+                        .WithMany()
+                        .HasForeignKey("OutboundOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_outbound_order_status_history_outbound_order_id");
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("OutboundOrder");
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.OutboundRequest", b =>
@@ -1607,6 +2094,58 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("Company");
 
                     b.Navigation("Type");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ProductPrice", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Product", "Product")
+                        .WithMany("ProductPrices")
+                        .HasForeignKey("ProductId")
+                        .HasConstraintName("fk_product_prices.product_id");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.ProductType", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Company", "Company")
+                        .WithMany("ProductTypes")
+                        .HasForeignKey("CompanyId")
+                        .HasConstraintName("fk_product_types_company_id");
+
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.RefreshToken", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .HasConstraintName("fk_refresh_tokens.id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Storix_BE.Domain.Models.Report", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_reports_company_id");
+
+                    b.HasOne("Storix_BE.Domain.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_reports_created_by_user_id");
+
+                    b.HasOne("Storix_BE.Domain.Models.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .HasConstraintName("fk_reports_warehouse_id");
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Shelf", b =>
@@ -1741,6 +2280,18 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("Storix_BE.Domain.Models.Subscription", b =>
+                {
+                    b.HasOne("Storix_BE.Domain.Models.Company", "Company")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscriptions_company_id");
+
+                    b.Navigation("Company");
+                });
+
             modelBuilder.Entity("Storix_BE.Domain.Models.Supplier", b =>
                 {
                     b.HasOne("Storix_BE.Domain.Models.Company", "Company")
@@ -1838,7 +2389,13 @@ namespace Storix_BE.Domain.Migrations
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Company", b =>
                 {
+                    b.Navigation("CompanyPayments");
+
+                    b.Navigation("ProductTypes");
+
                     b.Navigation("Products");
+
+                    b.Navigation("Subscriptions");
 
                     b.Navigation("Suppliers");
 
@@ -1900,6 +2457,8 @@ namespace Storix_BE.Domain.Migrations
 
                     b.Navigation("OutboundOrderItems");
 
+                    b.Navigation("ProductPrices");
+
                     b.Navigation("StockCountItems");
 
                     b.Navigation("StorageForecasts");
@@ -1943,6 +2502,11 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("Shelves");
                 });
 
+            modelBuilder.Entity("Storix_BE.Domain.Models.Subscription", b =>
+                {
+                    b.Navigation("CompanyPayments");
+                });
+
             modelBuilder.Entity("Storix_BE.Domain.Models.Supplier", b =>
                 {
                     b.Navigation("InboundOrders");
@@ -1959,7 +2523,9 @@ namespace Storix_BE.Domain.Migrations
                 {
                     b.Navigation("ActivityLogs");
 
-                    b.Navigation("InboundOrders");
+                    b.Navigation("InboundOrderCreatedByNavigations");
+
+                    b.Navigation("InboundOrderStaffs");
 
                     b.Navigation("InboundRequestApprovedByNavigations");
 
@@ -1967,11 +2533,15 @@ namespace Storix_BE.Domain.Migrations
 
                     b.Navigation("InventoryTransactions");
 
-                    b.Navigation("OutboundOrders");
+                    b.Navigation("OutboundOrderCreatedByNavigations");
+
+                    b.Navigation("OutboundOrderStaffs");
 
                     b.Navigation("OutboundRequestApprovedByNavigations");
 
                     b.Navigation("OutboundRequestRequestedByNavigations");
+
+                    b.Navigation("RefreshTokens");
 
                     b.Navigation("StockCountsTickets");
 

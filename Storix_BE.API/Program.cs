@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
 using Serilog;
 using Storix_BE.API.Configuration;
+using Storix_BE.API.Filters;
 using Storix_BE.Domain.Context;
 using Storix_BE.Service.Implementation;
 using System.Text.Json.Serialization;
 using CloudinaryDotNet;
 
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 var cloudinarySettings = builder.Configuration.GetSection("Cloudinary");
@@ -42,6 +46,7 @@ builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddControllers(options =>
 {
     options.SuppressAsyncSuffixInActionNames = false;
+    options.Filters.AddService<SubscriptionAccessFilter>();
 });
 
 /*builder.Services.AddDatabaseConfiguration(config);*/
@@ -56,6 +61,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+    // Pretty JSON in dev for easier debugging; keep compact in production.
+    options.JsonSerializerOptions.WriteIndented = builder.Environment.IsDevelopment();
 });
 builder.Services.AddCors(opt =>
 {

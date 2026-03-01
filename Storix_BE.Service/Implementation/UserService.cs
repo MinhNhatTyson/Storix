@@ -25,13 +25,22 @@ namespace Storix_BE.Service.Implementation
         private readonly IWarehouseAssignmentService _assignmentService;
         private readonly IConfiguration _configuration;
         private readonly IImageService _imageService;
-        public UserService(IUserRepository accRepository, IEmailService emailService, IWarehouseAssignmentService assignmentService, IConfiguration configuration, IImageService imageService)
+        private readonly ISubscriptionService _subscriptionService;
+
+        public UserService(
+            IUserRepository accRepository,
+            IEmailService emailService,
+            IWarehouseAssignmentService assignmentService,
+            IConfiguration configuration,
+            IImageService imageService,
+            ISubscriptionService subscriptionService)
         {
             _accRepository = accRepository;
             _emailService = emailService;
             _assignmentService = assignmentService;
             _configuration = configuration;
             _imageService = imageService;
+            _subscriptionService = subscriptionService;
         }
         public async Task<User?> Login(string email, string password)
         {
@@ -68,7 +77,7 @@ namespace Storix_BE.Service.Implementation
             string? adminPhone,
             string password)
         {
-            return await _accRepository.RegisterCompanyAdministratorAsync(
+            var user = await _accRepository.RegisterCompanyAdministratorAsync(
                 companyName,
                 businessCode,
                 address,
@@ -78,6 +87,14 @@ namespace Storix_BE.Service.Implementation
                 adminEmail,
                 adminPhone,
                 password);
+
+            // Tự động tạo subscription TRIAL 7 ngày cho company mới đăng ký
+            if (user.CompanyId.HasValue)
+            {
+                await _subscriptionService.CreateTrialAsync(user.CompanyId.Value);
+            }
+
+            return user;
         }
 
         private static void EnsureCompanyAdministratorAsync(int callerRoleId)
