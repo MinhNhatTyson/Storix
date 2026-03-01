@@ -32,7 +32,8 @@ namespace Storix_BE.Service.Implementation
             {
                 WarehouseId = request.WarehouseId,
                 Destination = request.Destination,
-                RequestedBy = request.RequestedBy
+                RequestedBy = request.RequestedBy,
+                Reason = request.Reason
             };
 
             foreach (var item in request.Items)
@@ -62,12 +63,19 @@ namespace Storix_BE.Service.Implementation
             return await _repo.UpdateOutboundRequestStatusAsync(requestId, approverId, status);
         }
 
-        public async Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note)
+        public async Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note, string? pricingMethod = "LastPurchasePrice")
         {
             if (outboundRequestId <= 0) throw new ArgumentException("Invalid outboundRequestId.", nameof(outboundRequestId));
             if (createdBy <= 0) throw new ArgumentException("Invalid createdBy.", nameof(createdBy));
 
-            return await _repo.CreateOutboundOrderFromRequestAsync(outboundRequestId, createdBy, staffId, note);
+            var method = string.IsNullOrWhiteSpace(pricingMethod) ? "LastPurchasePrice" : pricingMethod.Trim();
+            if (!string.Equals(method, "LastPurchasePrice", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(method, "SpecificIdentification", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Invalid pricing method. Allowed: LastPurchasePrice, SpecificIdentification.", nameof(pricingMethod));
+            }
+
+            return await _repo.CreateOutboundOrderFromRequestAsync(outboundRequestId, createdBy, staffId, note, method);
         }
 
         public async Task<OutboundOrder> UpdateOutboundOrderItemsAsync(int outboundOrderId, IEnumerable<UpdateOutboundOrderItemRequest> items)
@@ -122,7 +130,9 @@ namespace Storix_BE.Service.Implementation
                 item.ProductId,
                 p?.Name,
                 item.Quantity,
-                item.Price);
+                item.Price,
+                item.CostPrice,
+                item.PricingMethod);
         }
 
         private static OutboundRequestDto MapOutboundRequestToDto(OutboundRequest r)
@@ -134,6 +144,8 @@ namespace Storix_BE.Service.Implementation
                 r.RequestedBy,
                 r.ApprovedBy,
                 r.Destination,
+                r.Reason,
+                r.ReferenceCode,
                 r.Status,
                 r.TotalPrice,
                 r.CreatedAt,

@@ -13,7 +13,7 @@ namespace Storix_BE.Repository.Interfaces
 
         Task<OutboundRequest> UpdateOutboundRequestStatusAsync(int requestId, int approverId, string status);
 
-        Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note);
+        Task<OutboundOrder> CreateOutboundOrderFromRequestAsync(int outboundRequestId, int createdBy, int? staffId, string? note, string? pricingMethod = "LastPurchasePrice");
 
         Task<OutboundOrder> UpdateOutboundOrderItemsAsync(int outboundOrderId, IEnumerable<OutboundOrderItem> items);
 

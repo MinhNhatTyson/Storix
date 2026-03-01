@@ -15,7 +15,7 @@ namespace Storix_BE.Service.Interfaces
 
         Task<StockCountTicketDetailDto> GetTicketByIdAsync(int companyId, int ticketId);
 
-        Task<StockCountItemDto> UpdateCountedQuantityAsync(int companyId, int itemId, UpdateStockCountItemRequest request);
+        Task<StockCountItemDto> UpdateCountedQuantityAsync(int companyId, int callerUserId, int callerRoleId, int itemId, UpdateStockCountItemRequest request);
 
         Task<RunStockCountResultDto> RunAsync(int companyId, int createdByUserId, int ticketId);
 
@@ -33,7 +33,8 @@ namespace Storix_BE.Service.Interfaces
         string? Name,
         string? Type,
         string? Description,
-        IEnumerable<int>? ProductIds);
+        IEnumerable<int>? ProductIds,
+        int? AssignedTo = null);
 
     public sealed record StockCountTicketListItemDto(
         int Id,

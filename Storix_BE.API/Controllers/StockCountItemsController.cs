@@ -9,7 +9,7 @@ namespace Storix_BE.API.Controllers
 {
     [ApiController]
     [Route("api/stock-count-items")]
-    [Authorize(Roles = "4")]
+    [Authorize(Roles = "3,4")]
     public class StockCountItemsController : ControllerBase
     {
         private readonly IStockCountService _service;
@@ -34,7 +34,7 @@ namespace Storix_BE.API.Controllers
 
             try
             {
-                var updated = await _service.UpdateCountedQuantityAsync(caller.CompanyId.Value, itemId, request).ConfigureAwait(false);
+                var updated = await _service.UpdateCountedQuantityAsync(caller.CompanyId.Value, caller.Id, caller.RoleId ?? 0, itemId, request).ConfigureAwait(false);
                 return Ok(updated);
             }
             catch (InvalidOperationException ex)

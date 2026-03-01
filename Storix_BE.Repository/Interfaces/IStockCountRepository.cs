@@ -15,11 +15,14 @@ namespace Storix_BE.Repository.Interfaces
             string? name,
             string? type,
             string? description,
-            IEnumerable<int>? productIds);
+            IEnumerable<int>? productIds,
+            int? assignedTo = null);
 
         Task<List<StockCountsTicket>> ListTicketsAsync(int companyId, int? warehouseId, string? status);
 
         Task<StockCountsTicket> GetTicketByIdAsync(int companyId, int ticketId);
+
+        Task<StockCountItem> GetItemByIdAsync(int companyId, int itemId);
 
         Task<StockCountItem> UpdateCountedQuantityAsync(
             int companyId,
@@ -27,6 +30,8 @@ namespace Storix_BE.Repository.Interfaces
             int countedQuantity,
             string? description = null,
             bool? status = null);
+
+        Task MarkTicketReadyForApprovalAsync(int companyId, int ticketId);
 
         Task ApplyApprovalAsync(int companyId, int ticketId, int performedByUserId);
     }
