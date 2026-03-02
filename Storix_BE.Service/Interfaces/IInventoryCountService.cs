@@ -5,30 +5,30 @@ using System.Threading.Tasks;
 
 namespace Storix_BE.Service.Interfaces
 {
-    public interface IStockCountService
+    public interface IInventoryCountService
     {
-        Task<IReadOnlyList<StockCountInventoryProductDto>> ListInventoryProductsAsync(int companyId, int warehouseId, IEnumerable<int>? productIds = null);
+        Task<IReadOnlyList<InventoryCountInventoryProductDto>> ListInventoryProductsAsync(int companyId, int warehouseId, IEnumerable<int>? productIds = null);
 
-        Task<StockCountTicketDetailDto> CreateTicketAsync(int companyId, int createdByUserId, CreateStockCountTicketRequest request);
+        Task<InventoryCountTicketDetailDto> CreateTicketAsync(int companyId, int createdByUserId, CreateInventoryCountTicketRequest request);
 
-        Task<List<StockCountTicketListItemDto>> ListTicketsAsync(int companyId, int? warehouseId, string? status);
+        Task<List<InventoryCountTicketListItemDto>> ListTicketsAsync(int companyId, int? warehouseId, string? status);
 
-        Task<StockCountTicketDetailDto> GetTicketByIdAsync(int companyId, int ticketId);
+        Task<InventoryCountTicketDetailDto> GetTicketByIdAsync(int companyId, int ticketId);
 
-        Task<StockCountItemDto> UpdateCountedQuantityAsync(int companyId, int callerUserId, int callerRoleId, int itemId, UpdateStockCountItemRequest request);
+        Task<InventoryCountItemDto> UpdateCountedQuantityAsync(int companyId, int callerUserId, int callerRoleId, int itemId, UpdateInventoryCountItemRequest request);
 
-        Task<RunStockCountResultDto> RunAsync(int companyId, int createdByUserId, int ticketId);
+        Task<RunInventoryCountResultDto> RunAsync(int companyId, int createdByUserId, int ticketId);
 
         Task ApproveAsync(int companyId, int performedByUserId, int ticketId);
     }
 
-    public sealed record StockCountInventoryProductDto(
+    public sealed record InventoryCountInventoryProductDto(
         int ProductId,
         string? Sku,
         string? Name,
         int Quantity);
 
-    public sealed record CreateStockCountTicketRequest(
+    public sealed record CreateInventoryCountTicketRequest(
         int WarehouseId,
         string? Name,
         string? Type,
@@ -36,7 +36,7 @@ namespace Storix_BE.Service.Interfaces
         IEnumerable<int>? ProductIds,
         int? AssignedTo = null);
 
-    public sealed record StockCountTicketListItemDto(
+    public sealed record InventoryCountTicketListItemDto(
         int Id,
         int? WarehouseId,
         string? Name,
@@ -47,7 +47,7 @@ namespace Storix_BE.Service.Interfaces
         DateTime? FinishedDay,
         int ItemCount);
 
-    public sealed record StockCountItemDto(
+    public sealed record InventoryCountItemDto(
         int Id,
         int? ProductId,
         string? Sku,
@@ -58,7 +58,7 @@ namespace Storix_BE.Service.Interfaces
         bool? Status,
         string? Description);
 
-    public sealed record StockCountTicketDetailDto(
+    public sealed record InventoryCountTicketDetailDto(
         int Id,
         int? WarehouseId,
         string? Name,
@@ -68,14 +68,14 @@ namespace Storix_BE.Service.Interfaces
         DateTime? ExecutedDay,
         DateTime? FinishedDay,
         string? Description,
-        IReadOnlyList<StockCountItemDto> Items);
+        IReadOnlyList<InventoryCountItemDto> Items);
 
-    public sealed record UpdateStockCountItemRequest(
+    public sealed record UpdateInventoryCountItemRequest(
         int CountedQuantity,
         string? Description,
         bool? Status);
 
-    public sealed record RunStockCountResultDto(
+    public sealed record RunInventoryCountResultDto(
         int ReportId,
         JsonElement Summary,
         JsonElement Data);

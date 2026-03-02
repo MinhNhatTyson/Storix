@@ -25,22 +25,21 @@ namespace Storix_BE.Service.Implementation
         private readonly IWarehouseAssignmentService _assignmentService;
         private readonly IConfiguration _configuration;
         private readonly IImageService _imageService;
-        private readonly ISubscriptionService _subscriptionService;
+        // private readonly ISubscriptionService _subscriptionService; // tạm tắt subscription
 
         public UserService(
             IUserRepository accRepository,
             IEmailService emailService,
             IWarehouseAssignmentService assignmentService,
             IConfiguration configuration,
-            IImageService imageService,
-            ISubscriptionService subscriptionService)
+            IImageService imageService)
         {
             _accRepository = accRepository;
             _emailService = emailService;
             _assignmentService = assignmentService;
             _configuration = configuration;
             _imageService = imageService;
-            _subscriptionService = subscriptionService;
+            // _subscriptionService = subscriptionService; // tạm tắt subscription
         }
         public async Task<User?> Login(string email, string password)
         {
@@ -88,11 +87,11 @@ namespace Storix_BE.Service.Implementation
                 adminPhone,
                 password);
 
-            // Tự động tạo subscription TRIAL 7 ngày cho company mới đăng ký
-            if (user.CompanyId.HasValue)
-            {
-                await _subscriptionService.CreateTrialAsync(user.CompanyId.Value);
-            }
+            // Tạm tắt tự động tạo subscription do deploy DB chưa có bảng subscriptions
+            // if (user.CompanyId.HasValue)
+            // {
+            //     await _subscriptionService.CreateTrialAsync(user.CompanyId.Value);
+            // }
 
             return user;
         }

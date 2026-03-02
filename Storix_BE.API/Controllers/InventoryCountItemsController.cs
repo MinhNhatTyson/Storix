@@ -8,21 +8,21 @@ using System.Threading.Tasks;
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
-    [Route("api/stock-count-items")]
+    [Route("api/inventory-count-items")]
     [Authorize(Roles = "3,4")]
-    public class StockCountItemsController : ControllerBase
+    public class InventoryCountItemsController : ControllerBase
     {
-        private readonly IStockCountService _service;
+        private readonly IInventoryCountService _service;
         private readonly IUserService _userService;
 
-        public StockCountItemsController(IStockCountService service, IUserService userService)
+        public InventoryCountItemsController(IInventoryCountService service, IUserService userService)
         {
             _service = service;
             _userService = userService;
         }
 
         [HttpPatch("{itemId:int}")]
-        public async Task<IActionResult> UpdateCountedQuantity(int itemId, [FromBody] UpdateStockCountItemRequest request)
+        public async Task<IActionResult> UpdateCountedQuantity(int itemId, [FromBody] UpdateInventoryCountItemRequest request)
         {
             if (itemId <= 0) return BadRequest(new { message = "Invalid itemId." });
             if (request == null) return BadRequest(new { message = "Request body is required." });
@@ -59,4 +59,3 @@ namespace Storix_BE.API.Controllers
         }
     }
 }
-

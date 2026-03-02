@@ -66,9 +66,9 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<ShelfNode> ShelfNodes { get; set; }
 
-    public virtual DbSet<StockCountItem> StockCountItems { get; set; }
+    public virtual DbSet<InventoryCountItem> InventoryCountItems { get; set; }
 
-    public virtual DbSet<StockCountsTicket> StockCountsTickets { get; set; }
+    public virtual DbSet<InventoryCountsTicket> InventoryCountsTickets { get; set; }
 
     public virtual DbSet<StorageForecast> StorageForecasts { get; set; }
 
@@ -861,7 +861,7 @@ public partial class StorixDbContext : DbContext
                 .HasConstraintName("fk_shelf_node_shelf_id");
         });
 
-        modelBuilder.Entity<StockCountItem>(entity =>
+        modelBuilder.Entity<InventoryCountItem>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("stock_count_items_pkey");
 
@@ -875,19 +875,19 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Discrepancy).HasColumnName("discrepancy");
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Status).HasColumnName("status");
-            entity.Property(e => e.StockCountId).HasColumnName("stock_count_id");
+            entity.Property(e => e.InventoryCountId).HasColumnName("stock_count_id");
             entity.Property(e => e.SystemQuantity).HasColumnName("system_quantity");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.StockCountItems)
+            entity.HasOne(d => d.Product).WithMany(p => p.InventoryCountItems)
                 .HasForeignKey(d => d.ProductId)
                 .HasConstraintName("fk_stock_count_items_product_id");
 
-            entity.HasOne(d => d.StockCount).WithMany(p => p.StockCountItems)
-                .HasForeignKey(d => d.StockCountId)
+            entity.HasOne(d => d.InventoryCount).WithMany(p => p.InventoryCountItems)
+                .HasForeignKey(d => d.InventoryCountId)
                 .HasConstraintName("fk_stock_count_items_stock_count_id");
         });
 
-        modelBuilder.Entity<StockCountsTicket>(entity =>
+        modelBuilder.Entity<InventoryCountsTicket>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("stock_counts_tickets_pkey");
 
@@ -919,11 +919,11 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("type");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
 
-            entity.HasOne(d => d.PerformedByNavigation).WithMany(p => p.StockCountsTickets)
+            entity.HasOne(d => d.PerformedByNavigation).WithMany(p => p.InventoryCountsTickets)
                 .HasForeignKey(d => d.PerformedBy)
                 .HasConstraintName("fk_stock_counts_tickets_performed_by");
 
-            entity.HasOne(d => d.Warehouse).WithMany(p => p.StockCountsTickets)
+            entity.HasOne(d => d.Warehouse).WithMany(p => p.InventoryCountsTickets)
                 .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("fk_stock_counts_tickets_warehouse_id");
         });
