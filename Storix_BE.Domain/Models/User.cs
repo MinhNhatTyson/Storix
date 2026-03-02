@@ -53,7 +53,7 @@ public partial class User
 
     public virtual Role? Role { get; set; }
 
-    public virtual ICollection<StockCountsTicket> StockCountsTickets { get; set; } = new List<StockCountsTicket>();
+    public virtual ICollection<InventoryCountsTicket> InventoryCountsTickets { get; set; } = new List<InventoryCountsTicket>();
 
     public virtual ICollection<TransferOrder> TransferOrders { get; set; } = new List<TransferOrder>();
 

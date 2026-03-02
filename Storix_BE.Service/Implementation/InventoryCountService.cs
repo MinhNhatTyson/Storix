@@ -9,28 +9,26 @@ using System.Threading.Tasks;
 
 namespace Storix_BE.Service.Implementation
 {
-    public class StockCountService : IStockCountService
+    public class InventoryCountService : IInventoryCountService
     {
-        private readonly IStockCountRepository _repo;
+        private readonly IInventoryCountRepository _repo;
         private readonly IReportingRepository _reportingRepo;
 
-        public StockCountService(IStockCountRepository repo, IReportingRepository reportingRepo)
+        public InventoryCountService(IInventoryCountRepository repo, IReportingRepository reportingRepo)
         {
             _repo = repo;
             _reportingRepo = reportingRepo;
         }
 
-        public async Task<IReadOnlyList<StockCountInventoryProductDto>> ListInventoryProductsAsync(int companyId, int warehouseId, IEnumerable<int>? productIds = null)
+        public async Task<IReadOnlyList<InventoryCountInventoryProductDto>> ListInventoryProductsAsync(int companyId, int warehouseId, IEnumerable<int>? productIds = null)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
             if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse.", nameof(warehouseId));
 
-            // Company scoping is enforced when creating tickets and reading tickets; for inventory preview, we assume caller already
-            // has access to the warehouse via controller/service-level checks.
             var rows = await _repo.ListInventoryProductsAsync(companyId, warehouseId, productIds).ConfigureAwait(false);
             return rows
                 .Where(x => x.ProductId.HasValue)
-                .Select(x => new StockCountInventoryProductDto(
+                .Select(x => new InventoryCountInventoryProductDto(
                     x.ProductId!.Value,
                     x.Product?.Sku,
                     x.Product?.Name,
@@ -38,7 +36,7 @@ namespace Storix_BE.Service.Implementation
                 .ToList();
         }
 
-        public async Task<StockCountTicketDetailDto> CreateTicketAsync(int companyId, int createdByUserId, CreateStockCountTicketRequest request)
+        public async Task<InventoryCountTicketDetailDto> CreateTicketAsync(int companyId, int createdByUserId, CreateInventoryCountTicketRequest request)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
             if (createdByUserId <= 0) throw new ArgumentException("Invalid user.", nameof(createdByUserId));
@@ -59,14 +57,14 @@ namespace Storix_BE.Service.Implementation
             return MapTicketDetail(ticket);
         }
 
-        public async Task<List<StockCountTicketListItemDto>> ListTicketsAsync(int companyId, int? warehouseId, string? status)
+        public async Task<List<InventoryCountTicketListItemDto>> ListTicketsAsync(int companyId, int? warehouseId, string? status)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
             var tickets = await _repo.ListTicketsAsync(companyId, warehouseId, status).ConfigureAwait(false);
             return tickets.Select(MapTicketListItem).ToList();
         }
 
-        public async Task<StockCountTicketDetailDto> GetTicketByIdAsync(int companyId, int ticketId)
+        public async Task<InventoryCountTicketDetailDto> GetTicketByIdAsync(int companyId, int ticketId)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
             if (ticketId <= 0) throw new ArgumentException("Invalid ticket.", nameof(ticketId));
@@ -75,7 +73,7 @@ namespace Storix_BE.Service.Implementation
             return MapTicketDetail(ticket);
         }
 
-        public async Task<StockCountItemDto> UpdateCountedQuantityAsync(int companyId, int callerUserId, int callerRoleId, int itemId, UpdateStockCountItemRequest request)
+        public async Task<InventoryCountItemDto> UpdateCountedQuantityAsync(int companyId, int callerUserId, int callerRoleId, int itemId, UpdateInventoryCountItemRequest request)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
             if (callerUserId <= 0) throw new ArgumentException("Invalid caller user.", nameof(callerUserId));
@@ -85,19 +83,18 @@ namespace Storix_BE.Service.Implementation
                 throw new ArgumentException("Counted quantity must be greater than or equal to 0.", nameof(request.CountedQuantity));
 
             var itemBeforeUpdate = await _repo.GetItemByIdAsync(companyId, itemId).ConfigureAwait(false);
-            if (itemBeforeUpdate.StockCount == null)
-                throw new InvalidOperationException("Stock count item is not linked to a ticket.");
+            if (itemBeforeUpdate.InventoryCount == null)
+                throw new InvalidOperationException("Inventory count item is not linked to a ticket.");
 
-            var ticketStatus = itemBeforeUpdate.StockCount.Status ?? string.Empty;
+            var ticketStatus = itemBeforeUpdate.InventoryCount.Status ?? string.Empty;
             if (!string.Equals(ticketStatus, "Counting", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Counted quantity can only be updated when ticket status is 'Counting'.");
 
-            // Manager (roleId=3) can override; Staff (roleId=4) must be assigned to the ticket.
             if (callerRoleId == 4)
             {
-                var assignedTo = itemBeforeUpdate.StockCount.AssignedTo;
+                var assignedTo = itemBeforeUpdate.InventoryCount.AssignedTo;
                 if (!assignedTo.HasValue || assignedTo.Value != callerUserId)
-                    throw new InvalidOperationException("You are not assigned to this stock count ticket.");
+                    throw new InvalidOperationException("You are not assigned to this inventory count ticket.");
             }
             else if (callerRoleId != 3)
             {
@@ -110,35 +107,26 @@ namespace Storix_BE.Service.Implementation
             return MapItem(item);
         }
 
-        public async Task<RunStockCountResultDto> RunAsync(int companyId, int createdByUserId, int ticketId)
+        public async Task<RunInventoryCountResultDto> RunAsync(int companyId, int createdByUserId, int ticketId)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company.", nameof(companyId));
             if (createdByUserId <= 0) throw new ArgumentException("Invalid user.", nameof(createdByUserId));
             if (ticketId <= 0) throw new ArgumentException("Invalid ticket.", nameof(ticketId));
 
             var ticket = await _repo.GetTicketByIdAsync(companyId, ticketId).ConfigureAwait(false);
-
             if (!string.Equals(ticket.Status, "Counting", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Run check is only allowed when ticket status is 'Counting'.");
-
             if (!ticket.WarehouseId.HasValue)
                 throw new InvalidOperationException("Ticket has no warehouse.");
 
-            var items = (ticket.StockCountItems ?? new List<StockCountItem>()).ToList();
+            var items = (ticket.InventoryCountItems ?? new List<InventoryCountItem>()).ToList();
             if (items.Count == 0)
                 throw new InvalidOperationException("Ticket has no items.");
-
-            var missing = items.Where(i => !i.CountedQuantity.HasValue).ToList();
-            if (missing.Count > 0)
+            if (items.Any(i => !i.CountedQuantity.HasValue))
                 throw new InvalidOperationException("Some items are missing counted quantity. Please enter counted quantity for all items before running the check.");
 
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false
-            };
+            var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
 
             var dataItems = items.Select(i => new
             {
@@ -170,8 +158,6 @@ namespace Storix_BE.Service.Implementation
                 CreatedByUserId = createdByUserId,
                 ReportType = ReportTypes.InventoryTracking,
                 WarehouseId = ticket.WarehouseId,
-                TimeFrom = null,
-                TimeTo = null,
                 Status = "Running",
                 CreatedAt = now,
                 ParametersJson = JsonSerializer.Serialize(new { ticketId = ticket.Id }, jsonOptions)
@@ -190,11 +176,7 @@ namespace Storix_BE.Service.Implementation
                 await _reportingRepo.UpdateReportAsync(report).ConfigureAwait(false);
 
                 await _repo.MarkTicketReadyForApprovalAsync(companyId, ticketId).ConfigureAwait(false);
-
-                // Return parsed json to match API contract.
-                var summary = ParseJson(report.SummaryJson);
-                var data = ParseJson(report.DataJson);
-                return new RunStockCountResultDto(report.Id, summary, data);
+                return new RunInventoryCountResultDto(report.Id, ParseJson(report.SummaryJson), ParseJson(report.DataJson));
             }
             catch (Exception ex)
             {
@@ -215,10 +197,8 @@ namespace Storix_BE.Service.Implementation
             await _repo.ApplyApprovalAsync(companyId, ticketId, performedByUserId).ConfigureAwait(false);
         }
 
-        private static StockCountTicketListItemDto MapTicketListItem(StockCountsTicket t)
-        {
-            var itemCount = (t.StockCountItems?.Count ?? 0);
-            return new StockCountTicketListItemDto(
+        private static InventoryCountTicketListItemDto MapTicketListItem(InventoryCountsTicket t)
+            => new(
                 t.Id,
                 t.WarehouseId,
                 t.Name,
@@ -227,13 +207,10 @@ namespace Storix_BE.Service.Implementation
                 t.CreatedAt,
                 t.ExecutedDay,
                 t.FinishedDay,
-                itemCount);
-        }
+                t.InventoryCountItems?.Count ?? 0);
 
-        private static StockCountTicketDetailDto MapTicketDetail(StockCountsTicket t)
-        {
-            var items = (t.StockCountItems ?? Enumerable.Empty<StockCountItem>()).Select(MapItem).ToList();
-            return new StockCountTicketDetailDto(
+        private static InventoryCountTicketDetailDto MapTicketDetail(InventoryCountsTicket t)
+            => new(
                 t.Id,
                 t.WarehouseId,
                 t.Name,
@@ -243,22 +220,10 @@ namespace Storix_BE.Service.Implementation
                 t.ExecutedDay,
                 t.FinishedDay,
                 t.Description,
-                items);
-        }
+                (t.InventoryCountItems ?? Enumerable.Empty<InventoryCountItem>()).Select(MapItem).ToList());
 
-        private static StockCountItemDto MapItem(StockCountItem i)
-        {
-            return new StockCountItemDto(
-                i.Id,
-                i.ProductId,
-                i.Product?.Sku,
-                i.Product?.Name,
-                i.SystemQuantity,
-                i.CountedQuantity,
-                i.Discrepancy,
-                i.Status,
-                i.Description);
-        }
+        private static InventoryCountItemDto MapItem(InventoryCountItem i)
+            => new(i.Id, i.ProductId, i.Product?.Sku, i.Product?.Name, i.SystemQuantity, i.CountedQuantity, i.Discrepancy, i.Status, i.Description);
 
         private static JsonElement ParseJson(string? json)
         {
@@ -270,4 +235,3 @@ namespace Storix_BE.Service.Implementation
         }
     }
 }
-

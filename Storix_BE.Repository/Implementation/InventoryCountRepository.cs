@@ -9,11 +9,11 @@ using System.Threading.Tasks;
 
 namespace Storix_BE.Repository.Implementation
 {
-    public class StockCountRepository : IStockCountRepository
+    public class InventoryCountRepository : IInventoryCountRepository
     {
         private readonly StorixDbContext _context;
 
-        public StockCountRepository(StorixDbContext context)
+        public InventoryCountRepository(StorixDbContext context)
         {
             _context = context;
         }
@@ -23,23 +23,15 @@ namespace Storix_BE.Repository.Implementation
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (warehouseId <= 0) throw new ArgumentException("Invalid warehouseId.", nameof(warehouseId));
 
-            var warehouse = await _context.Warehouses
-                .AsNoTracking()
-                .FirstOrDefaultAsync(w => w.Id == warehouseId)
-                .ConfigureAwait(false);
-
-            if (warehouse == null)
-                throw new InvalidOperationException("Warehouse not found.");
+            var warehouse = await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == warehouseId).ConfigureAwait(false);
+            if (warehouse == null) throw new InvalidOperationException("Warehouse not found.");
             if (!warehouse.CompanyId.HasValue || warehouse.CompanyId.Value != companyId)
                 throw new InvalidOperationException("Warehouse does not belong to your company.");
 
             var query = _context.Inventories
                 .Include(i => i.Product)
                 .Include(i => i.Warehouse)
-                .Where(i =>
-                    i.WarehouseId == warehouseId &&
-                    i.Warehouse != null &&
-                    i.Warehouse.CompanyId == companyId);
+                .Where(i => i.WarehouseId == warehouseId && i.Warehouse != null && i.Warehouse.CompanyId == companyId);
 
             if (productIds != null)
             {
@@ -48,33 +40,17 @@ namespace Storix_BE.Repository.Implementation
                     query = query.Where(i => i.ProductId.HasValue && ids.Contains(i.ProductId.Value));
             }
 
-            return await query
-                .OrderBy(i => i.ProductId)
-                .ToListAsync()
-                .ConfigureAwait(false);
+            return await query.OrderBy(i => i.ProductId).ToListAsync().ConfigureAwait(false);
         }
 
-        public async Task<StockCountsTicket> CreateTicketAsync(
-            int companyId,
-            int warehouseId,
-            int createdByUserId,
-            string? name,
-            string? type,
-            string? description,
-            IEnumerable<int>? productIds,
-            int? assignedTo = null)
+        public async Task<InventoryCountsTicket> CreateTicketAsync(int companyId, int warehouseId, int createdByUserId, string? name, string? type, string? description, IEnumerable<int>? productIds, int? assignedTo = null)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (warehouseId <= 0) throw new ArgumentException("Invalid warehouseId.", nameof(warehouseId));
             if (createdByUserId <= 0) throw new ArgumentException("Invalid createdByUserId.", nameof(createdByUserId));
 
-            var warehouse = await _context.Warehouses
-                .AsNoTracking()
-                .FirstOrDefaultAsync(w => w.Id == warehouseId)
-                .ConfigureAwait(false);
-
-            if (warehouse == null)
-                throw new InvalidOperationException("Warehouse not found.");
+            var warehouse = await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == warehouseId).ConfigureAwait(false);
+            if (warehouse == null) throw new InvalidOperationException("Warehouse not found.");
             if (!warehouse.CompanyId.HasValue || warehouse.CompanyId.Value != companyId)
                 throw new InvalidOperationException("Warehouse does not belong to your company.");
 
@@ -99,13 +75,13 @@ namespace Storix_BE.Repository.Implementation
             await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
             try
             {
-                var ticket = new StockCountsTicket
+                var ticket = new InventoryCountsTicket
                 {
                     WarehouseId = warehouseId,
                     PerformedBy = createdByUserId,
                     AssignedTo = assignedTo,
-                    Name = string.IsNullOrWhiteSpace(name) ? $"StockCount-{warehouseId}-{DateTime.UtcNow:yyyyMMddHHmmss}" : name,
-                    Type = string.IsNullOrWhiteSpace(type) ? "StockCount" : type,
+                    Name = string.IsNullOrWhiteSpace(name) ? $"InventoryCount-{warehouseId}-{DateTime.UtcNow:yyyyMMddHHmmss}" : name,
+                    Type = string.IsNullOrWhiteSpace(type) ? "InventoryCount" : type,
                     Status = "Counting",
                     Description = description,
                     CreatedAt = now,
@@ -113,16 +89,16 @@ namespace Storix_BE.Repository.Implementation
                     FinishedDay = null
                 };
 
-                _context.StockCountsTickets.Add(ticket);
+                _context.InventoryCountsTickets.Add(ticket);
                 await _context.SaveChangesAsync().ConfigureAwait(false);
 
                 foreach (var inv in inventories)
                 {
                     if (!inv.ProductId.HasValue) continue;
 
-                    var item = new StockCountItem
+                    var item = new InventoryCountItem
                     {
-                        StockCountId = ticket.Id,
+                        InventoryCountId = ticket.Id,
                         ProductId = inv.ProductId,
                         SystemQuantity = inv.Quantity ?? 0,
                         CountedQuantity = null,
@@ -130,7 +106,7 @@ namespace Storix_BE.Repository.Implementation
                         Status = null,
                         Description = null
                     };
-                    _context.StockCountItems.Add(item);
+                    _context.InventoryCountItems.Add(item);
                 }
 
                 await _context.SaveChangesAsync().ConfigureAwait(false);
@@ -145,13 +121,13 @@ namespace Storix_BE.Repository.Implementation
             }
         }
 
-        public async Task<List<StockCountsTicket>> ListTicketsAsync(int companyId, int? warehouseId, string? status)
+        public async Task<List<InventoryCountsTicket>> ListTicketsAsync(int companyId, int? warehouseId, string? status)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
 
-            var query = _context.StockCountsTickets
+            var query = _context.InventoryCountsTickets
                 .Include(t => t.Warehouse)
-                .Include(t => t.StockCountItems)
+                .Include(t => t.InventoryCountItems)
                 .Where(t => t.Warehouse != null && t.Warehouse.CompanyId == companyId);
 
             if (warehouseId.HasValue && warehouseId.Value > 0)
@@ -160,85 +136,66 @@ namespace Storix_BE.Repository.Implementation
             if (!string.IsNullOrWhiteSpace(status))
                 query = query.Where(t => t.Status != null && t.Status.ToLower() == status.ToLower());
 
-            return await query
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync()
-                .ConfigureAwait(false);
+            return await query.OrderByDescending(t => t.CreatedAt).ToListAsync().ConfigureAwait(false);
         }
 
-        public async Task<StockCountsTicket> GetTicketByIdAsync(int companyId, int ticketId)
+        public async Task<InventoryCountsTicket> GetTicketByIdAsync(int companyId, int ticketId)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (ticketId <= 0) throw new ArgumentException("Invalid ticketId.", nameof(ticketId));
 
-            var ticket = await _context.StockCountsTickets
+            var ticket = await _context.InventoryCountsTickets
                 .Include(t => t.Warehouse)
-                .Include(t => t.StockCountItems)
+                .Include(t => t.InventoryCountItems)
                     .ThenInclude(i => i.Product)
-                .FirstOrDefaultAsync(t =>
-                    t.Id == ticketId &&
-                    t.Warehouse != null &&
-                    t.Warehouse.CompanyId == companyId)
+                .FirstOrDefaultAsync(t => t.Id == ticketId && t.Warehouse != null && t.Warehouse.CompanyId == companyId)
                 .ConfigureAwait(false);
 
             if (ticket == null)
-                throw new InvalidOperationException("Stock count ticket not found or does not belong to your company.");
+                throw new InvalidOperationException("Inventory count ticket not found or does not belong to your company.");
 
             return ticket;
         }
 
-        public async Task<StockCountItem> GetItemByIdAsync(int companyId, int itemId)
+        public async Task<InventoryCountItem> GetItemByIdAsync(int companyId, int itemId)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (itemId <= 0) throw new ArgumentException("Invalid itemId.", nameof(itemId));
 
-            var item = await _context.StockCountItems
-                .Include(i => i.StockCount)
+            var item = await _context.InventoryCountItems
+                .Include(i => i.InventoryCount)
                     .ThenInclude(t => t!.Warehouse)
                 .Include(i => i.Product)
-                .FirstOrDefaultAsync(i =>
-                    i.Id == itemId &&
-                    i.StockCount != null &&
-                    i.StockCount.Warehouse != null &&
-                    i.StockCount.Warehouse.CompanyId == companyId)
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.InventoryCount != null && i.InventoryCount.Warehouse != null && i.InventoryCount.Warehouse.CompanyId == companyId)
                 .ConfigureAwait(false);
 
             if (item == null)
-                throw new InvalidOperationException("Stock count item not found or does not belong to your company.");
+                throw new InvalidOperationException("Inventory count item not found or does not belong to your company.");
 
             return item;
         }
 
-        public async Task<StockCountItem> UpdateCountedQuantityAsync(
-            int companyId,
-            int itemId,
-            int countedQuantity,
-            string? description = null,
-            bool? status = null)
+        public async Task<InventoryCountItem> UpdateCountedQuantityAsync(int companyId, int itemId, int countedQuantity, string? description = null, bool? status = null)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (itemId <= 0) throw new ArgumentException("Invalid itemId.", nameof(itemId));
             if (countedQuantity < 0)
                 throw new ArgumentException("Counted quantity must be greater than or equal to 0.", nameof(countedQuantity));
 
-            var item = await _context.StockCountItems
-                .Include(i => i.StockCount)
+            var item = await _context.InventoryCountItems
+                .Include(i => i.InventoryCount)
                     .ThenInclude(t => t!.Warehouse)
                 .Include(i => i.Product)
-                .FirstOrDefaultAsync(i =>
-                    i.Id == itemId &&
-                    i.StockCount != null &&
-                    i.StockCount.Warehouse != null &&
-                    i.StockCount.Warehouse.CompanyId == companyId)
+                .FirstOrDefaultAsync(i => i.Id == itemId && i.InventoryCount != null && i.InventoryCount.Warehouse != null && i.InventoryCount.Warehouse.CompanyId == companyId)
                 .ConfigureAwait(false);
 
             if (item == null)
-                throw new InvalidOperationException("Stock count item not found or does not belong to your company.");
+                throw new InvalidOperationException("Inventory count item not found or does not belong to your company.");
 
-            if (item.StockCount == null)
-                throw new InvalidOperationException("Stock count item is not linked to a ticket.");
+            if (item.InventoryCount == null)
+                throw new InvalidOperationException("Inventory count item is not linked to a ticket.");
 
-            if (string.Equals(item.StockCount.Status, "Approved", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(item.InventoryCount.Status, "Approved", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Cannot update counted quantity for an approved ticket.");
 
             item.CountedQuantity = countedQuantity;
@@ -257,22 +214,19 @@ namespace Storix_BE.Repository.Implementation
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (ticketId <= 0) throw new ArgumentException("Invalid ticketId.", nameof(ticketId));
 
-            var ticket = await _context.StockCountsTickets
+            var ticket = await _context.InventoryCountsTickets
                 .Include(t => t.Warehouse)
-                .Include(t => t.StockCountItems)
-                .FirstOrDefaultAsync(t =>
-                    t.Id == ticketId &&
-                    t.Warehouse != null &&
-                    t.Warehouse.CompanyId == companyId)
+                .Include(t => t.InventoryCountItems)
+                .FirstOrDefaultAsync(t => t.Id == ticketId && t.Warehouse != null && t.Warehouse.CompanyId == companyId)
                 .ConfigureAwait(false);
 
             if (ticket == null)
-                throw new InvalidOperationException("Stock count ticket not found or does not belong to your company.");
+                throw new InvalidOperationException("Inventory count ticket not found or does not belong to your company.");
 
             if (string.Equals(ticket.Status, "Approved", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Cannot mark an approved ticket as ready.");
 
-            var missingCounts = ticket.StockCountItems.Where(i => !i.CountedQuantity.HasValue).Select(i => i.Id).ToList();
+            var missingCounts = ticket.InventoryCountItems.Where(i => !i.CountedQuantity.HasValue).Select(i => i.Id).ToList();
             if (missingCounts.Count > 0)
                 throw new InvalidOperationException("Some items are missing counted quantity. Please enter counted quantity for all items before running the check.");
 
@@ -287,17 +241,14 @@ namespace Storix_BE.Repository.Implementation
             if (ticketId <= 0) throw new ArgumentException("Invalid ticketId.", nameof(ticketId));
             if (performedByUserId <= 0) throw new ArgumentException("Invalid performedByUserId.", nameof(performedByUserId));
 
-            var ticket = await _context.StockCountsTickets
+            var ticket = await _context.InventoryCountsTickets
                 .Include(t => t.Warehouse)
-                .Include(t => t.StockCountItems)
-                .FirstOrDefaultAsync(t =>
-                    t.Id == ticketId &&
-                    t.Warehouse != null &&
-                    t.Warehouse.CompanyId == companyId)
+                .Include(t => t.InventoryCountItems)
+                .FirstOrDefaultAsync(t => t.Id == ticketId && t.Warehouse != null && t.Warehouse.CompanyId == companyId)
                 .ConfigureAwait(false);
 
             if (ticket == null)
-                throw new InvalidOperationException("Stock count ticket not found or does not belong to your company.");
+                throw new InvalidOperationException("Inventory count ticket not found or does not belong to your company.");
 
             if (string.Equals(ticket.Status, "Approved", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Ticket is already approved.");
@@ -308,7 +259,7 @@ namespace Storix_BE.Repository.Implementation
             if (!ticket.WarehouseId.HasValue)
                 throw new InvalidOperationException("Ticket has no warehouse.");
 
-            var missingCounts = ticket.StockCountItems.Where(i => !i.CountedQuantity.HasValue).Select(i => i.Id).ToList();
+            var missingCounts = ticket.InventoryCountItems.Where(i => !i.CountedQuantity.HasValue).Select(i => i.Id).ToList();
             if (missingCounts.Count > 0)
                 throw new InvalidOperationException("Some items are missing counted quantity. Please enter counted quantity for all items before approving.");
 
@@ -318,7 +269,7 @@ namespace Storix_BE.Repository.Implementation
             await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
             try
             {
-                foreach (var item in ticket.StockCountItems)
+                foreach (var item in ticket.InventoryCountItems)
                 {
                     if (!item.ProductId.HasValue) continue;
 
@@ -355,7 +306,7 @@ namespace Storix_BE.Repository.Implementation
                         {
                             WarehouseId = warehouseId,
                             ProductId = productId,
-                            TransactionType = "StockCountAdjustment",
+                            TransactionType = "InventoryCountAdjustment",
                             QuantityChange = delta,
                             ReferenceId = ticket.Id,
                             PerformedBy = performedByUserId,
@@ -380,4 +331,3 @@ namespace Storix_BE.Repository.Implementation
         }
     }
 }
-

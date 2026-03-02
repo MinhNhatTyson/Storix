@@ -6,6 +6,7 @@ using System.Security.Claims;
 
 namespace Storix_BE.API.Controllers
 {
+#if false // tạm tắt toàn bộ Subscriptions do deploy DB chưa có bảng subscriptions
     [ApiController]
     [Route("api/subscriptions")]
     [Authorize]
@@ -178,4 +179,5 @@ namespace Storix_BE.API.Controllers
             return int.TryParse(companyIdStr, out var companyId) ? companyId : null;
         }
     }
+#endif
 }

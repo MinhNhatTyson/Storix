@@ -6,6 +6,7 @@ using System.Security.Claims;
 
 namespace Storix_BE.API.Controllers
 {
+#if false // tạm tắt toàn bộ Payments do deploy DB chưa có đủ bảng payment/subscription
     [ApiController]
     [Route("api/payments")]
     [Authorize]
@@ -154,4 +155,5 @@ namespace Storix_BE.API.Controllers
             return int.TryParse(companyIdStr, out var companyId) ? companyId : null;
         }
     }
+#endif
 }

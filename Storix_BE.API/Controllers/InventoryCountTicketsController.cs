@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 namespace Storix_BE.API.Controllers
 {
     [ApiController]
-    [Route("api/stock-count-tickets")]
+    [Route("api/inventory-count-tickets")]
     [Authorize(Roles = "3,4")]
-    public class StockCountTicketsController : ControllerBase
+    public class InventoryCountTicketsController : ControllerBase
     {
-        private readonly IStockCountService _service;
+        private readonly IInventoryCountService _service;
         private readonly IUserService _userService;
 
-        public StockCountTicketsController(IStockCountService service, IUserService userService)
+        public InventoryCountTicketsController(IInventoryCountService service, IUserService userService)
         {
             _service = service;
             _userService = userService;
@@ -56,7 +56,7 @@ namespace Storix_BE.API.Controllers
 
         [HttpPost]
         [Authorize(Roles = "3")]
-        public async Task<IActionResult> CreateTicket([FromBody] CreateStockCountTicketRequest request)
+        public async Task<IActionResult> CreateTicket([FromBody] CreateInventoryCountTicketRequest request)
         {
             if (request == null) return BadRequest(new { message = "Request body is required." });
 
@@ -212,4 +212,3 @@ namespace Storix_BE.API.Controllers
         }
     }
 }
-
