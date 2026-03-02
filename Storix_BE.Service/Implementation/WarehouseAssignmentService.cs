@@ -407,5 +407,18 @@ namespace Storix_BE.Service.Implementation
             var created = await _assignmentRepository.CreateWarehouseAsync(warehouse);
             return created;
         }
+        public async Task<Warehouse> GetWarehouseStructureAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
+            if (warehouseId <= 0) throw new InvalidOperationException("Invalid warehouse id.");            
+
+            var warehouse = await _assignmentRepository.GetWarehouseWithStructureAsync(warehouseId);
+            if (warehouse == null)
+                throw new BusinessRuleException("BR-WH-01", "Warehouse not found.");
+            if (warehouse.CompanyId != companyId)
+                throw new BusinessRuleException("BR-WH-08", "Cross-company access is not allowed.");
+
+            return warehouse;
+        }
     }
 }
