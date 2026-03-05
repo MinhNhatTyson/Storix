@@ -490,7 +490,7 @@ namespace Storix_BE.Service.Implementation
                 throw new BusinessRuleException("BR-WH-08", "Cross-company access is not allowed.");
 
             // No special business rule preventing deletion specified; delegate to repository to remove structure and warehouse.
-            var deleted = await _assignment_repository.DeleteWarehouseAsync(warehouseId);
+            var deleted = await _assignmentRepository.DeleteWarehouseAsync(warehouseId);
             if (!deleted)
                 throw new Exception("Failed to delete warehouse.");
 
