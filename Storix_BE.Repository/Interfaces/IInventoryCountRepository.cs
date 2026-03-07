@@ -8,7 +8,7 @@ namespace Storix_BE.Repository.Interfaces
     {
         Task<IReadOnlyList<Inventory>> ListInventoryProductsAsync(int companyId, int warehouseId, IEnumerable<int>? productIds = null);
 
-        Task<StockCountsTicket> CreateTicketAsync(
+        Task<InventoryCountsTicket> CreateTicketAsync(
             int companyId,
             int warehouseId,
             int createdByUserId,
@@ -18,13 +18,13 @@ namespace Storix_BE.Repository.Interfaces
             IEnumerable<int>? productIds,
             int? assignedTo = null);
 
-        Task<List<StockCountsTicket>> ListTicketsAsync(int companyId, int? warehouseId, string? status);
+        Task<List<InventoryCountsTicket>> ListTicketsAsync(int companyId, int? warehouseId, string? status);
 
-        Task<StockCountsTicket> GetTicketByIdAsync(int companyId, int ticketId);
+        Task<InventoryCountsTicket> GetTicketByIdAsync(int companyId, int ticketId);
 
-        Task<StockCountsTicket> GetItemByIdAsync(int companyId, int itemId);
+        Task<InventoryCountItem> GetItemByIdAsync(int companyId, int itemId);
 
-        Task<StockCountItem> UpdateCountedQuantityAsync(
+        Task<InventoryCountItem> UpdateCountedQuantityAsync(
             int companyId,
             int itemId,
             int countedQuantity,
