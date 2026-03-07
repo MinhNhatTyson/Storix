@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Models;
@@ -17,8 +17,6 @@ public partial class StorixDbContext : DbContext
     }
 
     public virtual DbSet<ActivityLog> ActivityLogs { get; set; }
-
-    public virtual DbSet<AiRun> AiRuns { get; set; }
 
     public virtual DbSet<Company> Companies { get; set; }
 
@@ -66,9 +64,9 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<ShelfNode> ShelfNodes { get; set; }
 
-    public virtual DbSet<InventoryCountItem> InventoryCountItems { get; set; }
+    public virtual DbSet<StockCountItem> StockCountItems { get; set; }
 
-    public virtual DbSet<InventoryCountsTicket> InventoryCountsTickets { get; set; }
+    public virtual DbSet<StockCountsTicket> StockCountsTickets { get; set; }
 
     public virtual DbSet<StorageForecast> StorageForecasts { get; set; }
 
@@ -117,36 +115,6 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.ActivityLogs)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("fk_activity_logs_user_id");
-        });
-
-        modelBuilder.Entity<AiRun>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("ai_runs_pkey");
-
-            entity.ToTable("ai_runs");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CompanyId).HasColumnName("company_id");
-            entity.Property(e => e.FinishedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("finished_at");
-            entity.Property(e => e.ModelVersion)
-                .HasColumnType("character varying")
-                .HasColumnName("model_version");
-            entity.Property(e => e.ParametersJson)
-                .HasColumnType("jsonb")
-                .HasColumnName("parameters_json");
-            entity.Property(e => e.StartedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("started_at");
-            entity.Property(e => e.Type)
-                .HasColumnType("character varying")
-                .HasColumnName("type");
-
-            entity.HasOne(d => d.Company).WithMany()
-                .HasForeignKey(d => d.CompanyId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_ai_runs_company_id");
         });
 
         modelBuilder.Entity<Company>(entity =>
@@ -671,7 +639,9 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.Height).HasColumnName("height");
             entity.Property(e => e.Image).HasColumnName("image");
+            entity.Property(e => e.Length).HasColumnName("length");
             entity.Property(e => e.Name)
                 .HasColumnType("character varying")
                 .HasColumnName("name");
@@ -686,6 +656,7 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
             entity.Property(e => e.Weight).HasColumnName("weight");
+            entity.Property(e => e.Width).HasColumnName("width");
 
             entity.HasOne(d => d.Company).WithMany(p => p.Products)
                 .HasForeignKey(d => d.CompanyId)
@@ -787,6 +758,7 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Image)
                 .HasColumnType("character varying")
                 .HasColumnName("image");
+            entity.Property(e => e.Length).HasColumnName("length");
             entity.Property(e => e.Width).HasColumnName("width");
             entity.Property(e => e.XCoordinate).HasColumnName("x_coordinate");
             entity.Property(e => e.YCoordinate).HasColumnName("y_coordinate");
@@ -828,6 +800,8 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Height).HasColumnName("height");
             entity.Property(e => e.IdCode).HasColumnName("id_code");
             entity.Property(e => e.InventoryId).HasColumnName("inventory_id");
+            entity.Property(e => e.Length).HasColumnName("length");
+            entity.Property(e => e.Percentage).HasColumnName("percentage");
             entity.Property(e => e.LevelId).HasColumnName("level_id");
             entity.Property(e => e.Status).HasColumnName("status");
             entity.Property(e => e.Width).HasColumnName("width");
@@ -861,7 +835,7 @@ public partial class StorixDbContext : DbContext
                 .HasConstraintName("fk_shelf_node_shelf_id");
         });
 
-        modelBuilder.Entity<InventoryCountItem>(entity =>
+        modelBuilder.Entity<StockCountItem>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("stock_count_items_pkey");
 
@@ -875,19 +849,19 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Discrepancy).HasColumnName("discrepancy");
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Status).HasColumnName("status");
-            entity.Property(e => e.InventoryCountId).HasColumnName("stock_count_id");
+            entity.Property(e => e.StockCountId).HasColumnName("stock_count_id");
             entity.Property(e => e.SystemQuantity).HasColumnName("system_quantity");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.InventoryCountItems)
+            entity.HasOne(d => d.Product).WithMany(p => p.StockCountItems)
                 .HasForeignKey(d => d.ProductId)
                 .HasConstraintName("fk_stock_count_items_product_id");
 
-            entity.HasOne(d => d.InventoryCount).WithMany(p => p.InventoryCountItems)
-                .HasForeignKey(d => d.InventoryCountId)
+            entity.HasOne(d => d.StockCount).WithMany(p => p.StockCountItems)
+                .HasForeignKey(d => d.StockCountId)
                 .HasConstraintName("fk_stock_count_items_stock_count_id");
         });
 
-        modelBuilder.Entity<InventoryCountsTicket>(entity =>
+        modelBuilder.Entity<StockCountsTicket>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("stock_counts_tickets_pkey");
 
@@ -919,11 +893,11 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("type");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
 
-            entity.HasOne(d => d.PerformedByNavigation).WithMany(p => p.InventoryCountsTickets)
+            entity.HasOne(d => d.PerformedByNavigation).WithMany(p => p.StockCountsTickets)
                 .HasForeignKey(d => d.PerformedBy)
                 .HasConstraintName("fk_stock_counts_tickets_performed_by");
 
-            entity.HasOne(d => d.Warehouse).WithMany(p => p.InventoryCountsTickets)
+            entity.HasOne(d => d.Warehouse).WithMany(p => p.StockCountsTickets)
                 .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("fk_stock_counts_tickets_warehouse_id");
         });
@@ -1003,9 +977,12 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Image)
                 .HasColumnType("character varying")
                 .HasColumnName("image");
+            entity.Property(e => e.Length).HasColumnName("length");
             entity.Property(e => e.TypeId).HasColumnName("type_id");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
             entity.Property(e => e.Width).HasColumnName("width");
+            entity.Property(e => e.XCoordinate).HasColumnName("x_coordinate");
+            entity.Property(e => e.YCoordinate).HasColumnName("y_coordinate");
 
             entity.HasOne(d => d.Type).WithMany(p => p.StorageZones)
                 .HasForeignKey(d => d.TypeId)
