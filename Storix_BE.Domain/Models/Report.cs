@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Storix_BE.Domain.Models;
 
@@ -42,4 +42,3 @@ public partial class Report
 
     public DateTime? PdfGeneratedAt { get; set; }
 }
-

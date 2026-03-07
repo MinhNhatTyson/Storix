@@ -344,7 +344,7 @@ namespace Storix_BE.API.Controllers
             }
         }
         [HttpGet("~/api/get-warehouse-structure/{companyId:int}/{warehouseId:int}")]
-        [Authorize(Roles = "2")]
+        [Authorize(Roles = "2,3,4")]
         public async Task<IActionResult> GetWarehouseStructure(int companyId, int warehouseId)
         {
             if (companyId <= 0) return BadRequest(new { message = "CompanyId is required." });
@@ -455,6 +455,42 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
 
+        }
+        /// <summary>
+        /// Delete a warehouse and all related structure (Company Administrator only).
+        /// Route: DELETE /api/company-warehouses/{companyId}/warehouse/{warehouseId}
+        /// </summary>
+        [HttpDelete]
+        [Authorize(Roles = "2")]
+        [Route("~/api/delete-company-warehouses/{companyId:int}/warehouse/{warehouseId:int}")]
+        public async Task<IActionResult> DeleteWarehouse(int companyId, int warehouseId)
+        {
+            if (companyId <= 0)
+                return BadRequest(new { message = "CompanyId is required." });
+            if (warehouseId <= 0)
+                return BadRequest(new { message = "WarehouseId is required." });
+            try
+            {
+                var result = await _assignmentService.DeleteWarehouseAsync(companyId, warehouseId);
+                if (!result) return NotFound();
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (BusinessRuleException ex)
+            {
+                return BadRequest(new { code = ex.Code, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

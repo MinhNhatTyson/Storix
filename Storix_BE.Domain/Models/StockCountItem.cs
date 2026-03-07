@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace Storix_BE.Domain.Models;
 
-public partial class InventoryCountItem
+public partial class StockCountItem
 {
     public int Id { get; set; }
 
-    public int? InventoryCountId { get; set; }
+    public int? StockCountId { get; set; }
 
     public int? ProductId { get; set; }
 
@@ -23,5 +23,5 @@ public partial class InventoryCountItem
 
     public virtual Product? Product { get; set; }
 
-    public virtual InventoryCountsTicket? InventoryCount { get; set; }
+    public virtual StockCountsTicket? StockCount { get; set; }
 }
