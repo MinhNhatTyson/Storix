@@ -312,6 +312,8 @@ namespace Storix_BE.Service.Implementation
                         Code = z.Code,
                         Width = z.Width,
                         Height = z.Height,
+                        XCoordinate = z.X,
+                        YCoordinate = z.Y,
                         CreatedAt = now
                     };
                     warehouseStructure.StorageZones.Add(zone);
