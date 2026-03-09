@@ -98,6 +98,9 @@ namespace Storix_BE.Service.Implementation
                 CategoryId = request.CategoryId,
                 Unit = request.Unit,
                 Weight = request.Weight,
+                Width = request.Width,
+                Length = request.Length,
+                Height = request.Height,
                 Description = request.Description,
                 Image = imageUrl
             };
@@ -160,6 +163,9 @@ namespace Storix_BE.Service.Implementation
             existing.CategoryId = request.CategoryId;
             if (request.Unit != null) existing.Unit = request.Unit;
             if (request.Weight.HasValue) existing.Weight = request.Weight;
+            if (request.Width.HasValue) existing.Width = request.Width;
+            if (request.Length.HasValue) existing.Length = request.Length;
+            if (request.Height.HasValue) existing.Height = request.Height;
             if (request.Description != null) existing.Description = request.Description;
 
             await _repo.UpdateAsync(existing);
@@ -285,12 +291,24 @@ namespace Storix_BE.Service.Implementation
             var name = request.Name?.Trim();
             if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product category name is required.");
 
-            var toCreate = new ProductCategory
+            var toCreate = new ProductCategory();
+            if (request.ParentCategoryId.HasValue && request.ParentCategoryId.Value == 0)
             {
-                CompanyId = request.CompanyId,
-                Name = name,
-                ParentCategoryId = request.ParentCategoryId
-            };
+                toCreate = new ProductCategory
+                {
+                    CompanyId = request.CompanyId,
+                    Name = name,
+                };
+            }
+            else
+            {
+                toCreate = new ProductCategory
+                {
+                    CompanyId = request.CompanyId,
+                    Name = name,
+                    ParentCategoryId = request.ParentCategoryId
+                };
+            }
 
             // repository will validate parent, uniqueness and compute level
             return await _repo.CreateCategoryAsync(toCreate);
