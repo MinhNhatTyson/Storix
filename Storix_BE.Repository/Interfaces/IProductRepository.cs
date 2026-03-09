@@ -33,6 +33,9 @@ namespace Storix_BE.Repository.Interfaces
         Task<bool> CategoryHasChildrenAsync(int categoryId);
         Task<ProductCategory?> GetCategoryByIdAsync(int categoryId);
         Task<List<ProductCategory>> GetChildCategoriesAsync(int parentId);
+        Task<List<ProductCategory>> GetAllProductCategoriesAsync(int companyId);
+        Task<ProductCategory> CreateCategoryAsync(ProductCategory category);
+        Task<bool> RemoveCategoryAsync(ProductCategory category);
 
     }
 }

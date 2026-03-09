@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DocumentFormat.OpenXml.Office2010.Excel;
+using DocumentFormat.OpenXml.Office2016.Excel;
+using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.AspNetCore.Http;
 using Org.BouncyCastle.Asn1.Ocsp;
 using Storix_BE.Domain.Models;
 using Storix_BE.Repository.DTO;
@@ -264,5 +267,41 @@ namespace Storix_BE.Service.Implementation
         {
             return _repo.ImportProductsAsync(dtos);
         }
+        public async Task<List<ProductCategory>> GetChildCategoriesAsync(int parentId)
+        {
+            if (parentId <= 0) throw new InvalidOperationException("Invalid parent category id.");
+            return await _repo.GetChildCategoriesAsync(parentId);
+        }
+        public async Task<List<ProductCategory>> GetAllProductCategoriesAsync(int companyId)
+        {
+            if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
+            return await _repo.GetAllProductCategoriesAsync(companyId);
+        }
+
+        public async Task<ProductCategory> CreateProductCategoryAsync(CreateProductCategoryRequest request)
+        {
+            if (request == null) throw new InvalidOperationException("Request cannot be null.");
+            if (request.CompanyId <= 0) throw new InvalidOperationException("CompanyId must be a positive integer.");
+            var name = request.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product category name is required.");
+
+            var toCreate = new ProductCategory
+            {
+                CompanyId = request.CompanyId,
+                Name = name,
+                ParentCategoryId = request.ParentCategoryId
+            };
+
+            // repository will validate parent, uniqueness and compute level
+            return await _repo.CreateCategoryAsync(toCreate);
+        }
+
+        public async Task<bool> DeleteProductCategoryAsync(int id)
+        {
+                if (id <= 0) throw new InvalidOperationException("Invalid product category id.");
+                var existing = await _repo.GetCategoryByIdAsync(id);
+                if (existing == null) return false;
+                return await _repo.RemoveCategoryAsync(existing);
+            }
     }
 }
