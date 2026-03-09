@@ -98,6 +98,9 @@ namespace Storix_BE.Service.Implementation
                 CategoryId = request.CategoryId,
                 Unit = request.Unit,
                 Weight = request.Weight,
+                Width = request.Width,
+                Length = request.Length,
+                Height = request.Height,
                 Description = request.Description,
                 Image = imageUrl
             };
@@ -160,6 +163,9 @@ namespace Storix_BE.Service.Implementation
             existing.CategoryId = request.CategoryId;
             if (request.Unit != null) existing.Unit = request.Unit;
             if (request.Weight.HasValue) existing.Weight = request.Weight;
+            if (request.Width.HasValue) existing.Width = request.Width;
+            if (request.Length.HasValue) existing.Length = request.Length;
+            if (request.Height.HasValue) existing.Height = request.Height;
             if (request.Description != null) existing.Description = request.Description;
 
             await _repo.UpdateAsync(existing);
