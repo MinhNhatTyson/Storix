@@ -15,8 +15,6 @@ public partial class Product
 
     public int? TypeId { get; set; }
 
-    public string? Category { get; set; }
-
     public string? Unit { get; set; }
 
     public double? Weight { get; set; }
@@ -35,6 +33,10 @@ public partial class Product
 
     public double? Height { get; set; }
 
+    public int? CategoryId { get; set; }
+
+    public virtual ProductCategory? Category { get; set; }
+
     public virtual Company? Company { get; set; }
 
     public virtual ICollection<InboundOrderItem> InboundOrderItems { get; set; } = new List<InboundOrderItem>();
@@ -47,7 +49,7 @@ public partial class Product
 
     public virtual ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
 
-    public virtual ICollection<InventoryCountItem> InventoryCountItems { get; set; } = new List<InventoryCountItem>();
+    public virtual ICollection<StockCountItem> StockCountItems { get; set; } = new List<StockCountItem>();
 
     public virtual ICollection<StorageForecast> StorageForecasts { get; set; } = new List<StorageForecast>();
 

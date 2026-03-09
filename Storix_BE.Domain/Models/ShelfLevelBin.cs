@@ -22,6 +22,7 @@ public partial class ShelfLevelBin
     public string? IdCode { get; set; }
 
     public double? Length { get; set; }
+
     public int? Percentage { get; set; }
 
     public virtual Inventory? Inventory { get; set; }
