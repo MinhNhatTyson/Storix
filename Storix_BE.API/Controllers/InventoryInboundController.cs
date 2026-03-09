@@ -345,7 +345,7 @@ namespace Storix_BE.API.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
-        [HttpPost("import-excel")]
+        [HttpPost("import-inbound-request-from-excel")]
         public async Task<IActionResult> ImportInboundExcel(IFormFile file)
         {
             var result = await _service.ImportInboundRequestAsync(file);
