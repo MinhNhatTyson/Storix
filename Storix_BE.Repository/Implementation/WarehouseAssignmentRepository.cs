@@ -101,11 +101,6 @@ namespace Storix_BE.Repository.Implementation
                 (r.Status == null || !InactiveStatuses.Contains(r.Status.ToLower())));
             if (hasOutboundRequests) return true;
 
-            /*return await _context.InventoryCountsTickets.AnyAsync(t =>
-                t.WarehouseId == warehouseId &&
-                (t.AssignedTo == userId || t.PerformedBy == userId) &&
-                (t.Status == null || !InactiveStatuses.Contains(t.Status.ToLower())));*/
-
             return await _context.InventoryCountsTickets.AnyAsync(t =>
                 t.WarehouseId == warehouseId &&
                 (t.AssignedTo == userId || t.PerformedBy == userId) &&
