@@ -30,6 +30,9 @@ namespace Storix_BE.Repository.Interfaces
         List<ProductExportDto> ParseProductsFromCsv(IFormFile file);
         List<ProductExportDto> ParseProductsFromExcel(IFormFile file);
         Task ImportProductsAsync(List<ProductExportDto> dtos);
+        Task<bool> CategoryHasChildrenAsync(int categoryId);
+        Task<ProductCategory?> GetCategoryByIdAsync(int categoryId);
+        Task<List<ProductCategory>> GetChildCategoriesAsync(int parentId);
 
     }
 }

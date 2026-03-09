@@ -62,6 +62,17 @@ namespace Storix_BE.Repository.Implementation
                 .Where(p => p.CompanyId == companyId)
                 .ToListAsync();
         }
+        public async Task<bool> CategoryHasChildrenAsync(int categoryId)
+        {
+            return await _context.ProductCategories
+                .AnyAsync(c => c.ParentCategoryId == categoryId);
+        }
+        public async Task<ProductCategory?> GetCategoryByIdAsync(int id)
+        {
+            return await _context.ProductCategories
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
 
         public async Task<Product> CreateAsync(Product product)
         {
@@ -82,6 +93,7 @@ namespace Storix_BE.Repository.Implementation
             return await _context.Products
                 .AsNoTracking()
                 .Include(p => p.Type)
+                .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == product.Id) ?? product;
         }
 
@@ -107,11 +119,28 @@ namespace Storix_BE.Repository.Implementation
                 existing.Type = null;
             }
 
+            // If CategoryId changed / provided, validate and attach
+            if (product.CategoryId.HasValue)
+            {
+                var category = await _context.ProductCategories.FindAsync(product.CategoryId.Value);
+                if (category == null)
+                    throw new InvalidOperationException($"Product category with id {product.CategoryId.Value} not found.");
+                // ensure category belongs to same company when both sides have company id
+                if (category.CompanyId.HasValue && product.CompanyId.HasValue && category.CompanyId != product.CompanyId)
+                    throw new InvalidOperationException("Product category does not belong to the same company as the product.");
+                existing.CategoryId = product.CategoryId;
+                existing.Category = category;
+            }
+            else
+            {
+                existing.CategoryId = null;
+                existing.Category = null;
+            }
+
             // Patch other fields
             existing.CompanyId = product.CompanyId;
             existing.Sku = product.Sku;
             existing.Name = product.Name;
-            existing.Category = product.Category;
             existing.Unit = product.Unit;
             existing.Weight = product.Weight;
             existing.Description = product.Description;
@@ -287,7 +316,7 @@ namespace Storix_BE.Repository.Implementation
                     Id = p.Id,
                     Sku = p.Sku,
                     Name = p.Name,
-                    Category = p.Category,
+                    Category = p.Category.Name,
                     Unit = p.Unit,
                     Weight = p.Weight,
                     CompanyName = p.Company != null ? p.Company.Name : null,
@@ -367,7 +396,7 @@ namespace Storix_BE.Repository.Implementation
             using var workbook = new XLWorkbook(stream);
             var worksheet = workbook.Worksheet(1);
 
-            var rows = worksheet.RangeUsed().RowsUsed().Skip(1); 
+            var rows = worksheet.RangeUsed().RowsUsed().Skip(1);
 
             foreach (var row in rows)
             {
@@ -400,6 +429,7 @@ namespace Storix_BE.Repository.Implementation
 
                 var companyId = await ResolveCompanyId(dto.CompanyName);
                 var typeId = await ResolveProductTypeId(dto.ProductType);
+                var categoryId = await ResolveProductCategoryId(dto.Category);  
 
                 if (product == null)
                 {
@@ -415,7 +445,7 @@ namespace Storix_BE.Repository.Implementation
 
                 // UPDATE (shared)
                 product.Name = dto.Name;
-                product.Category = dto.Category;
+                product.CategoryId = categoryId;
                 product.Unit = dto.Unit;
                 product.Weight = dto.Weight;
                 product.CompanyId = companyId;
@@ -442,6 +472,15 @@ namespace Storix_BE.Repository.Implementation
 
             return await _context.ProductTypes
                 .Where(c => c.Name == typeName)
+                .Select(c => (int?)c.Id)
+                .FirstOrDefaultAsync();
+        }
+        private async Task<int?> ResolveProductCategoryId(string? categoryName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName)) return null;
+
+            return await _context.ProductCategories
+                .Where(c => c.Name == categoryName)
                 .Select(c => (int?)c.Id)
                 .FirstOrDefaultAsync();
         }

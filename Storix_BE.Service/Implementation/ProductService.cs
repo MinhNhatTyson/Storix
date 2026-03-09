@@ -70,14 +70,29 @@ namespace Storix_BE.Service.Implementation
             {
                 imageUrl = await _imageService.UploadProductImageAsync(request.Image);
             }
+            if (request.CategoryId.HasValue)
+            {
+                var category = await _repo.GetCategoryByIdAsync(request.CategoryId.Value);
 
+                if (category == null)
+                    throw new InvalidOperationException("Product category not found.");
+
+                if (category.CompanyId.HasValue && category.CompanyId != request.CompanyId)
+                    throw new InvalidOperationException("Category does not belong to this company.");
+
+                var hasChildren = await _repo.CategoryHasChildrenAsync(category.Id);
+
+                if (hasChildren)
+                    throw new InvalidOperationException(
+                        "Product must be assigned to the lowest level category.");
+            }
             var product = new Product
             {
                 CompanyId = request.CompanyId,
                 Sku = request.Sku,
                 Name = request.Name,
                 TypeId = request.TypeId,
-                Category = request.Category,
+                CategoryId = request.CategoryId,
                 Unit = request.Unit,
                 Weight = request.Weight,
                 Description = request.Description,
@@ -101,8 +116,23 @@ namespace Storix_BE.Service.Implementation
                 if (!(char.IsLetterOrDigit(c) || c == '-' || c == '_'))
                     throw new InvalidOperationException("SKU contains invalid characters. Only letters, digits, '-' and '_' are allowed.");
             }
+            if (request.CategoryId.HasValue)
+            {
+                var category = await _repo.GetCategoryByIdAsync(request.CategoryId.Value);
 
-            
+                if (category == null)
+                    throw new InvalidOperationException("Product category not found.");
+
+                if (category.CompanyId.HasValue && category.CompanyId != request.CompanyId)
+                    throw new InvalidOperationException("Category does not belong to this company.");
+
+                var hasChildren = await _repo.CategoryHasChildrenAsync(category.Id);
+
+                if (hasChildren)
+                    throw new InvalidOperationException(
+                        "Product must be assigned to the lowest level category.");
+            }
+
             var existing = await _repo.GetByIdAsync(id, request.CompanyId);
             if (existing == null) return null;
 
@@ -124,7 +154,7 @@ namespace Storix_BE.Service.Implementation
 
             if (request.Name != null) existing.Name = request.Name;
             existing.TypeId = request.TypeId;
-            if (request.Category != null) existing.Category = request.Category;
+            existing.CategoryId = request.CategoryId;
             if (request.Unit != null) existing.Unit = request.Unit;
             if (request.Weight.HasValue) existing.Weight = request.Weight;
             if (request.Description != null) existing.Description = request.Description;

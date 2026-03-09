@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Models;
 
-namespace Storix_BE.Domain.Models;
+namespace Storix_BE.Domain.Context;
 
 public partial class StorixDbContext : DbContext
 {
