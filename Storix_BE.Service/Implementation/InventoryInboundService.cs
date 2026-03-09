@@ -1,4 +1,6 @@
-﻿using Storix_BE.Domain.Models;
+﻿using ClosedXML.Excel;
+using Microsoft.AspNetCore.Http;
+using Storix_BE.Domain.Models;
 using Storix_BE.Repository.DTO;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
@@ -113,7 +115,54 @@ namespace Storix_BE.Service.Implementation
             var createdRequest = await _repo.CreateInventoryInboundTicketRequest(inboundRequest, productPrices);
             return createdRequest;
         }
+        public async Task<InboundRequest> ImportInboundRequestAsync(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new InvalidOperationException("Excel file is empty.");
 
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+
+            using var workbook = new XLWorkbook(stream);
+            var worksheet = workbook.Worksheet(1);
+
+            // HEADER (Row 2)
+            var header = worksheet.Row(2);
+
+            // Fix: Use List<CreateInboundOrderItemRequest> for Items so we can add items
+            var items = new List<CreateInboundOrderItemRequest>();
+
+            var request = new CreateInboundRequestRequest(
+                header.Cell(1).GetValue<int>(),
+                header.Cell(2).GetValue<int>(),
+                header.Cell(3).GetValue<int>(),
+                header.Cell(4).GetValue<string>(),
+                DateOnly.FromDateTime(header.Cell(5).GetDateTime()),
+                header.Cell(6).GetValue<double>(),
+                items
+            );
+
+            // ITEMS
+            int itemHeaderRow = 4;
+            int row = itemHeaderRow + 1;
+
+            while (!worksheet.Row(row).IsEmpty())
+            {
+                var item = new CreateInboundOrderItemRequest(
+                    worksheet.Row(row).Cell(1).GetValue<int>(),
+                    worksheet.Row(row).Cell(2).GetValue<int>(),
+                    worksheet.Row(row).Cell(3).GetValue<double>(),
+                    worksheet.Row(row).Cell(4).GetValue<double>()
+                );
+
+                items.Add(item); // Fix: Add to the List, not to IEnumerable
+
+                row++;
+            }
+
+            // IMPORTANT: reuse your existing logic
+            return await CreateInboundRequestAsync(request);
+        }
         private async Task<string> GenerateUniqueCodeAsync()
         {
             const string prefix = "PO";

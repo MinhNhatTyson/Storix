@@ -1,4 +1,5 @@
-﻿using Storix_BE.Domain.Models;
+﻿using Microsoft.AspNetCore.Http;
+using Storix_BE.Domain.Models;
 using Storix_BE.Repository.DTO;
 using System;
 using System.Collections.Generic;
@@ -29,7 +30,8 @@ namespace Storix_BE.Service.Interfaces
         byte[] ExportInboundRequestToExcel(InboundRequestExportDto request);
 
         byte[] ExportInboundOrderToCsv(InboundOrderExportDto order);
-        byte[] ExportInboundOrderToExcel(InboundOrderExportDto order);       
+        byte[] ExportInboundOrderToExcel(InboundOrderExportDto order);
+        Task<InboundRequest> ImportInboundRequestAsync(IFormFile file);
     }    
     public sealed record SupplierDto(int Id, string? Name, string? Phone, string? Email);
 

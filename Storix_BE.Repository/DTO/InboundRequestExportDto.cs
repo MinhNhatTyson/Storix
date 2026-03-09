@@ -81,4 +81,23 @@ namespace Storix_BE.Repository.DTO
         public string? Description { get; set; }
 
     }
+    public class ImportInboundRequestDto
+    {
+        public int WarehouseId { get; set; }
+        public int SupplierId { get; set; }
+        public string RequestedBy { get; set; }
+        public string Note { get; set; }
+        public DateTime ExpectedArrivalDate { get; set; }
+        public decimal OrderDiscount { get; set; }
+
+        public List<ImportInboundItemDto> Items { get; set; } = new();
+    }
+
+    public class ImportInboundItemDto
+    {
+        public int ProductId { get; set; }
+        public int ExpectedQuantity { get; set; }
+        public decimal Price { get; set; }
+        public decimal LineDiscount { get; set; }
+    }
 }
