@@ -314,6 +314,9 @@ namespace Storix_BE.Service.Implementation
                         Height = z.Height,
                         XCoordinate = z.X,
                         YCoordinate = z.Y,
+                        IsEsd = z.isESD,
+                        IsMsd = z.isMSD,
+                        ZoneType = z.zoneType,
                         CreatedAt = now
                     };
                     warehouseStructure.StorageZones.Add(zone);
@@ -418,7 +421,8 @@ namespace Storix_BE.Service.Implementation
                                             var bin = new ShelfLevelBin
                                             {
                                                 IdCode = b.Id,
-                                                Code = b.Code
+                                                Code = b.Code,
+                                                Status = (b.Status?.ToLower() == "active")
                                             };
                                             level.ShelfLevelBins.Add(bin);
                                         }

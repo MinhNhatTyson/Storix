@@ -41,6 +41,9 @@ namespace Storix_BE.Service.Interfaces
         double? Y,
         double? Width,
         double? Height,
+        bool? isESD,
+        bool? isMSD,
+        string? zoneType,
         IEnumerable<ShelfDto>? Shelves);
 
     public sealed record ShelfDto(
@@ -57,7 +60,7 @@ namespace Storix_BE.Service.Interfaces
 
     public sealed record LevelDto(string? Id, string? Code, IEnumerable<BinDto>? Bins);
 
-    public sealed record BinDto(string? Id, string? Code);
+    public sealed record BinDto(string? Id, string? Code, string? Status);
 
     public sealed record NodeDto(string? Id, double? X, double? Y, double? Radius, string? Side, string? Type);
 
