@@ -320,7 +320,8 @@ namespace Storix_BE.Service.Implementation
                 RefreshToken = refreshTokenStr,
                 UserId = user.Id,
                 RoleId = user.RoleId,
-                CompanyId = user.CompanyId
+                CompanyId = user.CompanyId,
+                WarehouseId = user.WarehouseAssignments.FirstOrDefault()?.WarehouseId
             };
         }
 
