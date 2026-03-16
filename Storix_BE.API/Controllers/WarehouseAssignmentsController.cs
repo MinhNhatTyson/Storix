@@ -392,7 +392,10 @@ namespace Storix_BE.API.Controllers
                         width = z.Width,
                         height = z.Height,
                         length = z.Length,
-                        shelves = z.Shelves?.Select(s => (object)new 
+                        IsEsd = z.IsEsd,
+                        IsMsd = z.IsMsd,
+                        ZoneType = z.ZoneType,
+                        shelves = z.Shelves?.Select(s => (object)new
                         {
                             id = s.IdCode,
                             code = s.Code,
@@ -420,7 +423,8 @@ namespace Storix_BE.API.Controllers
                                     ? l.ShelfLevelBins.Select(b => (object)new
                                     {
                                         id = b.IdCode,
-                                        code = b.Code
+                                        code = b.Code,
+                                        status = b.Status
                                     }).ToList()
                                     : new List<object>()
                             }).ToList()
