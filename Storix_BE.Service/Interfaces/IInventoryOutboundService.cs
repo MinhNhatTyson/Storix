@@ -20,6 +20,7 @@ namespace Storix_BE.Service.Interfaces
         Task<OutboundOrder> UpdateOutboundOrderStatusAsync(int outboundOrderId, int performedBy, string status);
 
         Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy, IEnumerable<ConfirmOutboundBatchAllocationRequest> allocations);
+        Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy, ConfirmOutboundOrderRequest request);
         Task<List<OutboundRequestDto>> GetAllOutboundRequestsAsync(int companyId, int? warehouseId);
         Task<OutboundRequestDto> GetOutboundRequestByIdAsync(int companyId, int id);
         Task<List<OutboundOrderDto>> GetAllOutboundOrdersAsync(int companyId, int? warehouseId);
@@ -40,11 +41,19 @@ namespace Storix_BE.Service.Interfaces
 
     public sealed record UpdateOutboundOrderItemRequest(int Id, int ProductId, int? Quantity);
 
+    public sealed record UpdateOutboundOrderItemLocationRequest(int Id, int ProductId, int? Quantity, int? ShelfId);
+
     public sealed record CreateOutboundOrderFromRequestRequest(int CreatedBy, int? StaffId, string? Note, string? PricingMethod = "LastPurchasePrice");
 
     public sealed record ConfirmOutboundBatchAllocationRequest(int ProductId, int BatchId, int Quantity);
 
-    public sealed record ConfirmOutboundOrderRequest(int PerformedBy, IEnumerable<ConfirmOutboundBatchAllocationRequest> Allocations);
+    public sealed record ConfirmOutboundLocationAllocationRequest(int ProductId, int ShelfId, int Quantity);
+
+    public sealed record ConfirmOutboundOrderRequest(
+        int PerformedBy,
+        IEnumerable<ConfirmOutboundBatchAllocationRequest>? Allocations,
+        IEnumerable<ConfirmOutboundLocationAllocationRequest>? LocationAllocations = null,
+        string? Note = null);
 
     public sealed record UpdateOutboundOrderStatusRequest(int PerformedBy, string Status);
 

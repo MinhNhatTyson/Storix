@@ -118,6 +118,34 @@ namespace Storix_BE.Service.Implementation
 
             return await _repo.ConfirmOutboundOrderAsync(outboundOrderId, performedBy, mapped);
         }
+
+        public async Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy, ConfirmOutboundOrderRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            if (performedBy <= 0) throw new ArgumentException("Invalid performedBy.", nameof(performedBy));
+
+            var batchAllocations = (request.Allocations ?? Enumerable.Empty<ConfirmOutboundBatchAllocationRequest>())
+                .Select(a => (a.ProductId, a.BatchId, a.Quantity))
+                .ToList();
+
+            if (!batchAllocations.Any())
+                throw new InvalidOperationException("Allocations are required. Each outbound line must specify explicit batch allocations.");
+
+            var invalidBatch = batchAllocations.FirstOrDefault(a => a.ProductId <= 0 || a.BatchId <= 0 || a.Quantity <= 0);
+            if (invalidBatch != default)
+                throw new InvalidOperationException("Each allocation must have ProductId > 0, BatchId > 0 and Quantity > 0.");
+
+            var locationAllocations = (request.LocationAllocations ?? Enumerable.Empty<ConfirmOutboundLocationAllocationRequest>())
+                .Select(a => (a.ProductId, a.ShelfId, a.Quantity))
+                .ToList();
+
+            var invalidLocation = locationAllocations.FirstOrDefault(a => a.ProductId <= 0 || a.ShelfId <= 0 || a.Quantity <= 0);
+            if (invalidLocation != default)
+                throw new InvalidOperationException("Each location allocation must have ProductId > 0, ShelfId > 0 and Quantity > 0.");
+
+            return await _repo.ConfirmOutboundOrderAsync(outboundOrderId, performedBy, batchAllocations, locationAllocations, request.Note);
+        }
         private static OutboundWarehouseDto? MapWarehouse(Warehouse? w)
         {
             if (w == null) return null;

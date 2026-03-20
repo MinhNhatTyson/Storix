@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Storix_BE.Service.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 
 namespace Storix_BE.API.Controllers
@@ -151,6 +152,37 @@ namespace Storix_BE.API.Controllers
             }
         }
 
+        /// <summary>
+        /// Staff-friendly JSON payload for editing outbound ticket items (with optional shelf placement).
+        /// </summary>
+        [HttpPut("tickets/{ticketId}/items-json")]
+        public async Task<IActionResult> UpdateTicketItemsJson(int ticketId, [FromBody] IEnumerable<UpdateOutboundOrderItemLocationRequest> items)
+        {
+            try
+            {
+                var authError = EnsureRole(4, "Only Staff (roleId=4) can update outbound ticket items.");
+                if (authError != null) return authError;
+                if (items == null)
+                    return BadRequest(new { message = "Items payload is required." });
+
+                var mapped = items.Select(i => new UpdateOutboundOrderItemRequest(i.Id, i.ProductId, i.Quantity)).ToList();
+                var ticket = await _service.UpdateOutboundOrderItemsAsync(ticketId, mapped);
+                return Ok(ticket);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
         [HttpPost("tickets/{ticketId}/confirm")]
         public async Task<IActionResult> ConfirmOutbound(int ticketId, [FromBody] ConfirmOutboundOrderRequest payload)
         {
@@ -159,7 +191,7 @@ namespace Storix_BE.API.Controllers
                 var authError = EnsureRole(3, "Only Manager (roleId=3) can confirm outbound orders.");
                 if (authError != null) return authError;
 
-                var ticket = await _service.ConfirmOutboundOrderAsync(ticketId, payload.PerformedBy, payload.Allocations);
+                var ticket = await _service.ConfirmOutboundOrderAsync(ticketId, payload.PerformedBy, payload);
                 return Ok(ticket);
             }
             catch (InvalidOperationException ex)

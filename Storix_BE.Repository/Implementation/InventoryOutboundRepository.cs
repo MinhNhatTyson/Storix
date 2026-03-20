@@ -360,7 +360,12 @@ namespace Storix_BE.Repository.Implementation
             return order;
         }
 
-        public async Task<OutboundOrder> ConfirmOutboundOrderAsync(int outboundOrderId, int performedBy, IEnumerable<(int ProductId, int BatchId, int Quantity)> allocations)
+        public async Task<OutboundOrder> ConfirmOutboundOrderAsync(
+            int outboundOrderId,
+            int performedBy,
+            IEnumerable<(int ProductId, int BatchId, int Quantity)> allocations,
+            IEnumerable<(int ProductId, int ShelfId, int Quantity)>? locationAllocations = null,
+            string? note = null)
         {
             if (allocations == null) throw new ArgumentNullException(nameof(allocations));
 
@@ -425,6 +430,22 @@ namespace Storix_BE.Repository.Implementation
                 .ToListAsync()
                 .ConfigureAwait(false);
 
+            var locationList = (locationAllocations ?? Enumerable.Empty<(int ProductId, int ShelfId, int Quantity)>()).ToList();
+            if (locationList.Any())
+            {
+                var locationProductIds = locationList.Select(x => x.ProductId).Distinct().ToHashSet();
+                if (!locationProductIds.SetEquals(orderProductIds))
+                    throw new InvalidOperationException("Location allocations must cover exactly all products in outbound order.");
+
+                foreach (var productId in orderProductIds)
+                {
+                    var required = orderItems.Where(i => i.ProductId == productId).Sum(i => i.Quantity ?? 0);
+                    var allocated = locationList.Where(a => a.ProductId == productId).Sum(a => a.Quantity);
+                    if (required != allocated)
+                        throw new InvalidOperationException($"Location quantity mismatch for ProductId {productId}. Required: {required}, Allocated: {allocated}.");
+                }
+            }
+
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
             var oldStatusForHistory = order.Status;
@@ -476,11 +497,68 @@ namespace Storix_BE.Repository.Implementation
                         CreatedAt = now
                     });
 
+                    _context.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        WarehouseId = order.WarehouseId,
+                        ProductId = alloc.ProductId,
+                        TransactionType = "Outbound",
+                        QuantityChange = -alloc.Quantity,
+                        ReferenceId = order.Id,
+                        PerformedBy = performedBy,
+                        CreatedAt = now
+                    });
+
                     var matchingOrderItems = orderItems.Where(i => i.ProductId == alloc.ProductId).ToList();
                     foreach (var oi in matchingOrderItems)
                     {
                         oi.PricingMethod = "SpecificIdentification";
                         oi.CostPrice = unitCost;
+                    }
+                }
+
+                if (locationList.Any())
+                {
+                    var shelfIds = locationList.Select(x => x.ShelfId).Distinct().ToList();
+                    var shelfSet = await _context.Shelves
+                        .AsNoTracking()
+                        .Where(s => shelfIds.Contains(s.Id) && s.WarehouseId == order.WarehouseId)
+                        .Select(s => s.Id)
+                        .ToListAsync()
+                        .ConfigureAwait(false);
+
+                    var validShelfIds = shelfSet.ToHashSet();
+                    var invalidShelfId = locationList.Select(x => x.ShelfId).FirstOrDefault(sid => !validShelfIds.Contains(sid));
+                    if (invalidShelfId > 0)
+                        throw new InvalidOperationException($"Shelf {invalidShelfId} is invalid or does not belong to outbound warehouse.");
+
+                    foreach (var loc in locationList)
+                    {
+                        var inventory = inventories.First(i => i.ProductId == loc.ProductId);
+
+                        var invLoc = await _context.InventoryLocations
+                            .FirstOrDefaultAsync(x => x.InventoryId == inventory.Id && x.ShelfId == loc.ShelfId)
+                            .ConfigureAwait(false);
+
+                        if (invLoc == null)
+                        {
+                            throw new InvalidOperationException($"No stock placement found at ShelfId {loc.ShelfId} for ProductId {loc.ProductId}.");
+                        }
+
+                        var currentQty = invLoc.Quantity ?? 0;
+                        if (currentQty < loc.Quantity)
+                            throw new InvalidOperationException($"Insufficient shelf stock for ProductId {loc.ProductId} at ShelfId {loc.ShelfId}. Available: {currentQty}, Requested: {loc.Quantity}.");
+
+                        invLoc.Quantity = currentQty - loc.Quantity;
+                        invLoc.UpdatedAt = now;
+
+                        _context.ActivityLogs.Add(new ActivityLog
+                        {
+                            UserId = performedBy,
+                            Entity = "OutboundOrder",
+                            EntityId = order.Id,
+                            Action = $"OUTBOUND_LOCATION_TRANSITION:PRODUCT={loc.ProductId};SHELF={loc.ShelfId};QTY={loc.Quantity};NOTE={note}",
+                            Timestamp = now
+                        });
                     }
                 }
 
