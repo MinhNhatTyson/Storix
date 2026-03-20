@@ -279,7 +279,8 @@ namespace Storix_BE.Repository.Implementation
             if (!IsItemUpdateAllowedStatus(currentStatus))
                 throw new InvalidOperationException($"Items can only be updated during QualityCheck/LoadTemporary/IssueReported. Current status: '{currentStatus}'.");
 
-            foreach (var incoming in items)
+            var incomingList = items.ToList();
+            foreach (var incoming in incomingList)
             {
                 if (incoming.ProductId == null || incoming.ProductId <= 0)
                     throw new InvalidOperationException("Each item must have a valid ProductId.");
@@ -287,39 +288,79 @@ namespace Storix_BE.Repository.Implementation
                     throw new InvalidOperationException("Each item must have Quantity > 0.");
             }
 
-            foreach (var incoming in items)
+            var outboundRequestIds = order.OutboundOrderItems
+                .Where(x => x.OutboundRequestId.HasValue)
+                .Select(x => x.OutboundRequestId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (outboundRequestIds.Count != 1)
+                throw new InvalidOperationException("OutboundOrder must map to exactly one OutboundRequest for item verification.");
+
+            var outboundRequestId = outboundRequestIds[0];
+
+            var requestedItems = await _context.OutboundOrderItems
+                .AsNoTracking()
+                .Where(x => x.OutboundRequestId == outboundRequestId && x.OutboundOrderId == null)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            if (!requestedItems.Any())
+                throw new InvalidOperationException($"No source request items found for OutboundRequestId {outboundRequestId}.");
+
+            var requestByProduct = requestedItems
+                .Where(x => x.ProductId.HasValue)
+                .GroupBy(x => x.ProductId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity ?? 0));
+
+            foreach (var incoming in incomingList)
             {
+                OutboundOrderItem? existing = null;
+
                 if (incoming.Id > 0)
                 {
-                    var existing = order.OutboundOrderItems.FirstOrDefault(x => x.Id == incoming.Id);
+                    existing = order.OutboundOrderItems.FirstOrDefault(x => x.Id == incoming.Id);
                     if (existing == null)
                         throw new InvalidOperationException($"OutboundOrderItem with id {incoming.Id} not found in order {outboundOrderId}.");
-
-                    existing.ProductId = incoming.ProductId;
-                    existing.Quantity = incoming.Quantity;
                 }
                 else
                 {
-                    var existingByProduct = order.OutboundOrderItems.FirstOrDefault(x => x.ProductId == incoming.ProductId);
-                    if (existingByProduct != null)
-                    {
-                        existingByProduct.Quantity = incoming.Quantity;
-                    }
-                    else
-                    {
-                        var newItem = new OutboundOrderItem
-                        {
-                            ProductId = incoming.ProductId,
-                            Quantity = incoming.Quantity,
-                            OutboundOrder = order
-                        };
-                        order.OutboundOrderItems.Add(newItem);
-                    }
+                    existing = order.OutboundOrderItems.FirstOrDefault(x => x.ProductId == incoming.ProductId);
                 }
+
+                if (existing == null)
+                    throw new InvalidOperationException("Cannot add new items that are not in the original outbound ticket.");
+
+                if (existing.OutboundRequestId != outboundRequestId)
+                    throw new InvalidOperationException("Item is not linked to the original outbound request.");
+
+                if (existing.ProductId != incoming.ProductId)
+                    throw new InvalidOperationException("Changing ProductId is not allowed when updating outbound ticket items.");
+
+                existing.Quantity = incoming.Quantity;
+            }
+
+            var currentByProduct = order.OutboundOrderItems
+                .Where(x => x.ProductId.HasValue)
+                .GroupBy(x => x.ProductId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity ?? 0));
+
+            var requestProductIds = requestByProduct.Keys.OrderBy(x => x).ToList();
+            var currentProductIds = currentByProduct.Keys.OrderBy(x => x).ToList();
+            if (!requestProductIds.SequenceEqual(currentProductIds))
+                throw new InvalidOperationException("Outbound ticket items must keep the same product set as the original outbound request.");
+
+            foreach (var kv in requestByProduct)
+            {
+                var productId = kv.Key;
+                var requestedQty = kv.Value;
+                var actualQty = currentByProduct.TryGetValue(productId, out var qty) ? qty : 0;
+
+                if (actualQty != requestedQty)
+                    throw new InvalidOperationException($"ProductId {productId} must keep total quantity {requestedQty} as requested. Current: {actualQty}.");
             }
 
             await _context.SaveChangesAsync().ConfigureAwait(false);
-
             return order;
         }
 
@@ -544,7 +585,9 @@ namespace Storix_BE.Repository.Implementation
                     var shelfIds = locationList.Select(x => x.ShelfId).Distinct().ToList();
                     var shelfSet = await _context.Shelves
                         .AsNoTracking()
-                        .Where(s => shelfIds.Contains(s.Id) && s.WarehouseId == order.WarehouseId)
+                        .Where(s => shelfIds.Contains(s.Id)
+                                    && s.Zone != null
+                                    && s.Zone.WarehouseId == order.WarehouseId)
                         .Select(s => s.Id)
                         .ToListAsync()
                         .ConfigureAwait(false);

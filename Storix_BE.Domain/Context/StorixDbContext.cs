@@ -565,10 +565,10 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Price).HasColumnName("price");
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Quantity).HasColumnName("quantity");
-
-            // DB-first schema currently does not contain these columns.
-            entity.Ignore(e => e.PricingMethod);
-            entity.Ignore(e => e.CostPrice);
+            entity.Property(e => e.PricingMethod)
+                .HasColumnType("character varying")
+                .HasColumnName("pricing_method");
+            entity.Property(e => e.CostPrice).HasColumnName("cost_price");
 
             entity.HasOne(d => d.OutboundOrder).WithMany(p => p.OutboundOrderItems)
                 .HasForeignKey(d => d.OutboundOrderId)
