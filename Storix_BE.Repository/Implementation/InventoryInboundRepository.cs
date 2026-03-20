@@ -109,7 +109,6 @@ namespace Storix_BE.Repository.Implementation
                 await tx.RollbackAsync().ConfigureAwait(false);
                 throw;
             }
-
             return request;
         }
 
@@ -134,7 +133,6 @@ namespace Storix_BE.Repository.Implementation
 
             return inbound;
         }
-
         public async Task<InboundOrder> CreateInboundOrderFromRequestAsync(int inboundRequestId, int createdBy, int? staffId)
         {
             var inboundRequest = await _context.InboundRequests
