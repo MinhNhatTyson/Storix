@@ -9,8 +9,6 @@ public partial class StorageRecommendation
 
     public int? InboundProductId { get; set; }
 
-    public string? StorageRecommendation1 { get; set; }
-
     public string? Reason { get; set; }
 
     public DateTime? CreatedAt { get; set; }
