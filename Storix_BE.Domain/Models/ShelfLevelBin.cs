@@ -28,4 +28,5 @@ public partial class ShelfLevelBin
     public virtual Inventory? Inventory { get; set; }
 
     public virtual ShelfLevel? Level { get; set; }
+    public virtual ICollection<Recommendation> Recommendations { get; set; } = new List<Recommendation>();
 }
