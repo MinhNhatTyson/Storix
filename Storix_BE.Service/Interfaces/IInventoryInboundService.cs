@@ -16,7 +16,7 @@ namespace Storix_BE.Service.Interfaces
         Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status);
 
         Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);
-        
+
         Task<InboundOrder> UpdateTicketItemsAsync(int inboundOrderId, IEnumerable<UpdateInboundOrderItemRequest> items);
         Task<List<InboundRequestDto>> GetAllInboundRequestsAsync(int companyId);
         Task<List<InboundOrderDto>> GetAllInboundOrdersAsync(int companyId);
@@ -32,7 +32,37 @@ namespace Storix_BE.Service.Interfaces
         byte[] ExportInboundOrderToCsv(InboundOrderExportDto order);
         byte[] ExportInboundOrderToExcel(InboundOrderExportDto order);
         Task<InboundRequest> ImportInboundRequestAsync(IFormFile file);
-    }    
+        public sealed record RecommendationPayload(string BinId, string? Path, double? DistanceInfo);
+        public sealed record StorageRecommendationItemRequest(int InboundProductId, RecommendationPayload Recommendation, string? Reason);
+        public sealed record AddStorageRecommendationsRequest(IEnumerable<StorageRecommendationItemRequest> StorageRecommendations);
+
+        Task AddStorageRecommendationsAsync(AddStorageRecommendationsRequest request);
+
+        //I need a feature to allow adding StorageRecommendation for an InboundOrderItem. The request should be like this:
+        /* {
+             "storageRecommendations": [
+                 {
+                 "inboundProductId": 1,       
+                 "recommendation": {
+                      "binId": "bin-1773993342251-0.6429834106626294",
+                      "path": "Zone 2 > S-2 > L-1 > B-1",
+                      "distanceInfo": 532
+                   },
+                 "reason": "Đây là vị trí trống đầu tiên hệ thống tìm thấy, tối ưu hóa thời gian nhập kho xe nâng (putaway time)."
+                 },
+                 {
+                 "inboundProductId": 12,    
+                 "recommendation": {
+                      "binId": "bin-1273993342251-0.6429834106626294",
+                      "path": "Zone 2 > S-2 > L-1 > B-1",
+                      "distanceInfo": 512
+                   },
+                 "reason": "abcxha"
+                 }
+             ]
+           }*/
+        //Note that the binId here is the IdCode of the ShelfLevelBin, not the Id. You have to find the ShelfLevelBin by its IdCode before creating the StorageRecommendation.
+    }
     public sealed record SupplierDto(int Id, string? Name, string? Phone, string? Email);
 
     public sealed record WarehouseDto(int Id, string? Name, string? Address, string? Description, int? Width, int? Height, int? Length);
