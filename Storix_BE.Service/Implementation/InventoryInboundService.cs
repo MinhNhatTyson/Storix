@@ -400,7 +400,7 @@ namespace Storix_BE.Service.Implementation
 
             await _repo.AddStorageRecommendationsAsync(repoDtos).ConfigureAwait(false);
         }
-        public async Task<List<IInventoryInboundService.InboundItemRecommendationsDto>> GetStorageRecommendationsByInboundOrderIdAsync(int inboundOrderId)
+        public async Task<List<InboundItemRecommendationsDto>> GetStorageRecommendationsByInboundOrderIdAsync(int inboundOrderId)
         {
             if (inboundOrderId <= 0) throw new ArgumentException("Invalid inbound order id.", nameof(inboundOrderId));
 
@@ -413,7 +413,7 @@ namespace Storix_BE.Service.Implementation
                     {
                         var r = sr.Recommendation;
                         var bin = r?.Bin;
-                        return new IInventoryInboundService.StorageRecommendationDto(
+                        return new StorageRecommendationDto(
                             sr.Id,
                             sr.RecommendationId,
                             r?.BinId,
@@ -424,7 +424,7 @@ namespace Storix_BE.Service.Implementation
                             sr.CreatedAt);
                     }).ToList();
 
-                return new IInventoryInboundService.InboundItemRecommendationsDto(
+                return new InboundItemRecommendationsDto(
                     item.Id,
                     item.ProductId,
                     item.Product?.Sku,
