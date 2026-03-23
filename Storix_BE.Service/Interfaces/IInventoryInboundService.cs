@@ -15,8 +15,8 @@ namespace Storix_BE.Service.Interfaces
 
         Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status);
 
-        Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);
-
+        Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);        
+        
         Task<InboundOrder> UpdateTicketItemsAsync(int inboundOrderId, IEnumerable<UpdateInboundOrderItemRequest> items);
         Task<List<InboundRequestDto>> GetAllInboundRequestsAsync(int companyId);
         Task<List<InboundOrderDto>> GetAllInboundOrdersAsync(int companyId);
@@ -107,7 +107,8 @@ namespace Storix_BE.Service.Interfaces
         IEnumerable<CreateInboundOrderItemRequest> Items);
 
     public sealed record UpdateInboundRequestStatusRequest(int ApproverId, string Status);
-    public sealed record UpdateInboundOrderItemRequest(int Id, int ProductId, int? ExpectedQuantity, int? ReceivedQuantity);
+    public sealed record LocationAssignmentRequest(string BinId, int Quantity);
+    public sealed record UpdateInboundOrderItemRequest(int Id, int ProductId, int? ExpectedQuantity, int? ReceivedQuantity, IEnumerable<LocationAssignmentRequest>? Locations);
     public sealed record StorageRecommendationDto(
             int Id,
             int? RecommendationId,
