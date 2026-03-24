@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Storix_BE.Domain.Models;
@@ -14,6 +14,10 @@ public partial class OutboundOrderItem
     public int? ProductId { get; set; }
 
     public int? Quantity { get; set; }
+
+    public int? ExpectedQuantity { get; set; }
+
+    public int? ReceivedQuantity { get; set; }
 
     /// <summary>Giá bán (sale price)</summary>
     public double? Price { get; set; }
