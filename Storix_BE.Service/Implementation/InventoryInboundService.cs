@@ -259,7 +259,6 @@ namespace Storix_BE.Service.Implementation
                 item.Price,
                 item.Discount,
                 item.ExpectedQuantity,
-                p?.TypeId,
                 p?.Description);
         }
 

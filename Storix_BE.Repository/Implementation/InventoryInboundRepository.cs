@@ -614,7 +614,6 @@ namespace Storix_BE.Repository.Implementation
                         Discount = i.Discount,
                         ExpectedQuantity = i.ExpectedQuantity,
                         ReceivedQuantity = i.ReceivedQuantity,
-                        TypeId = i.Product != null ? i.Product.TypeId : null,
                         Description = i.Product != null ? i.Product.Description : null
                     }).ToList()
                 })
@@ -650,7 +649,6 @@ namespace Storix_BE.Repository.Implementation
                         Discount = i.Discount,
                         ExpectedQuantity = i.ExpectedQuantity,
                         ReceivedQuantity = i.ReceivedQuantity,
-                        TypeId = i.Product != null ? i.Product.TypeId : null,
                         Description = i.Product != null ? i.Product.Description : null
                     }).ToList()
                 })
