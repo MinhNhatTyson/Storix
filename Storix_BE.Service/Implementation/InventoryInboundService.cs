@@ -206,7 +206,8 @@ namespace Storix_BE.Service.Implementation
             if (inboundOrderId <= 0) throw new ArgumentException("Invalid inboundOrderId.", nameof(inboundOrderId));
             if (items == null) throw new ArgumentNullException(nameof(items));
             if (!items.Any()) throw new InvalidOperationException("Items payload cannot be empty.");
-            
+
+            // Map domain inbound order items (existing shape)
             var domainItems = items.Select(i => new InboundOrderItem
             {
                 Id = i.Id,
@@ -215,7 +216,18 @@ namespace Storix_BE.Service.Implementation
                 ReceivedQuantity = i.ReceivedQuantity
             }).ToList();
 
-            return await _repo.UpdateInboundOrderItemsAsync(inboundOrderId, domainItems);
+            // Map location placements to repository DTOs
+            var placements = items
+                .Where(i => i.Locations != null)
+                .SelectMany(i => i.Locations!.Select(loc => new IInventoryInboundRepository.InventoryPlacementDto(
+                    i.Id,
+                    i.ProductId,
+                    loc.Quantity,
+                    loc.BinId
+                )))
+                .ToList();
+
+            return await _repo.UpdateInboundOrderItemsAsync(inboundOrderId, domainItems, placements).ConfigureAwait(false);
         }
         private static SupplierDto? MapSupplier(Supplier? s)
         {
@@ -247,7 +259,6 @@ namespace Storix_BE.Service.Implementation
                 item.Price,
                 item.Discount,
                 item.ExpectedQuantity,
-                p?.TypeId,
                 p?.Description);
         }
 
@@ -399,6 +410,40 @@ namespace Storix_BE.Service.Implementation
             )).ToList();
 
             await _repo.AddStorageRecommendationsAsync(repoDtos).ConfigureAwait(false);
+        }
+        public async Task<List<InboundItemRecommendationsDto>> GetStorageRecommendationsByInboundOrderIdAsync(int inboundOrderId)
+        {
+            if (inboundOrderId <= 0) throw new ArgumentException("Invalid inbound order id.", nameof(inboundOrderId));
+
+            var items = await _repo.GetInboundOrderItemsWithRecommendationsAsync(inboundOrderId).ConfigureAwait(false);
+
+            var result = items.Select(item =>
+            {
+                var recs = (item.StorageRecommendations ?? Enumerable.Empty<StorageRecommendation>())
+                    .Select(sr =>
+                    {
+                        var r = sr.Recommendation;
+                        var bin = r?.Bin;
+                        return new StorageRecommendationDto(
+                            sr.Id,
+                            sr.RecommendationId,
+                            r?.BinId,
+                            bin?.IdCode,
+                            r?.Path,
+                            r?.DistanceInfo,
+                            sr.Reason,
+                            sr.CreatedAt);
+                    }).ToList();
+
+                return new InboundItemRecommendationsDto(
+                    item.Id,
+                    item.ProductId,
+                    item.Product?.Sku,
+                    item.Product?.Name,
+                    recs);
+            }).ToList();
+
+            return result;
         }
     }
 }

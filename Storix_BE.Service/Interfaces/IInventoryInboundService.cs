@@ -15,8 +15,8 @@ namespace Storix_BE.Service.Interfaces
 
         Task<InboundRequest> UpdateInboundRequestStatusAsync(int ticketRequestId, int approverId, string status);
 
-        Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);
-
+        Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);        
+        
         Task<InboundOrder> UpdateTicketItemsAsync(int inboundOrderId, IEnumerable<UpdateInboundOrderItemRequest> items);
         Task<List<InboundRequestDto>> GetAllInboundRequestsAsync(int companyId);
         Task<List<InboundOrderDto>> GetAllInboundOrdersAsync(int companyId);
@@ -37,6 +37,7 @@ namespace Storix_BE.Service.Interfaces
         public sealed record AddStorageRecommendationsRequest(IEnumerable<StorageRecommendationItemRequest> StorageRecommendations);
 
         Task AddStorageRecommendationsAsync(AddStorageRecommendationsRequest request);
+        Task<List<InboundItemRecommendationsDto>> GetStorageRecommendationsByInboundOrderIdAsync(int inboundOrderId);
     }
     public sealed record SupplierDto(int Id, string? Name, string? Phone, string? Email);
 
@@ -51,7 +52,6 @@ namespace Storix_BE.Service.Interfaces
         double? Price,
         double? LineDiscount,
         int? ExpectedQuantity,
-        int? TypeId,
         string? Description);
     public sealed record InboundRequestDto(
         int Id,
@@ -106,5 +106,22 @@ namespace Storix_BE.Service.Interfaces
         IEnumerable<CreateInboundOrderItemRequest> Items);
 
     public sealed record UpdateInboundRequestStatusRequest(int ApproverId, string Status);
-    public sealed record UpdateInboundOrderItemRequest(int Id, int ProductId, int? ExpectedQuantity, int? ReceivedQuantity);
+    public sealed record LocationAssignmentRequest(string BinId, int Quantity);
+    public sealed record UpdateInboundOrderItemRequest(int Id, int ProductId, int? ExpectedQuantity, int? ReceivedQuantity, IEnumerable<LocationAssignmentRequest>? Locations);
+    public sealed record StorageRecommendationDto(
+            int Id,
+            int? RecommendationId,
+            int? BinId,
+            string? BinIdCode,
+            string? Path,
+            double? DistanceInfo,
+            string? Reason,
+            DateTime? CreatedAt);
+
+    public sealed record InboundItemRecommendationsDto(
+        int InboundOrderItemId,
+        int? ProductId,
+        string? Sku,
+        string? Name,
+        IEnumerable<StorageRecommendationDto> StorageRecommendations);
 }

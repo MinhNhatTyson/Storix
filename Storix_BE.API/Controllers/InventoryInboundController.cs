@@ -82,8 +82,9 @@ namespace Storix_BE.API.Controllers
 
         /// <summary>
         /// Update InboundOrder (ticket) items — modify expected/received quantities or add items.
+        /// Accepts location assignments to record where received units are stored (bin id code + quantity).
         /// </summary>
-        [HttpPut("tickets/{ticketId}/items")]
+        [HttpPut("update-tickets/{ticketId}/items")]
         public async Task<IActionResult> UpdateTicketItems(int ticketId, [FromBody] IEnumerable<UpdateInboundOrderItemRequest> items)
         {
             try
@@ -362,6 +363,29 @@ namespace Storix_BE.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+        [HttpGet("get-inbound-orders/{inboundOrderId:int}/storage-recommendations")]
+        public async Task<IActionResult> GetStorageRecommendations(int inboundOrderId)
+        {
+            if (inboundOrderId <= 0) return BadRequest(new { message = "Invalid inbound order id." });
+
+            try
+            {
+                var items = await _service.GetStorageRecommendationsByInboundOrderIdAsync(inboundOrderId);
+                return Ok(items);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
             }
             catch (ArgumentException ex)
             {
