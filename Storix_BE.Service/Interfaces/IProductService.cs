@@ -51,6 +51,9 @@ namespace Storix_BE.Service.Interfaces
         double? Height,
         bool? IsEsd,
         bool? IsMsd,
+        bool? IsCold,
+        bool? IsVulnerable,
+        bool? IsHighValue,
         string? Description,
         IFormFile? Image);
 
@@ -66,6 +69,9 @@ namespace Storix_BE.Service.Interfaces
         double? Height,
         bool? IsEsd,
         bool? IsMsd,
+        bool? IsCold,
+        bool? IsVulnerable,
+        bool? IsHighValue,
         string? Description,
         IFormFile? Image);
     public sealed record ProductResponseDTO(
@@ -75,6 +81,11 @@ namespace Storix_BE.Service.Interfaces
         int? CategoryId,
         string? Unit,
         double? Weight,
+        bool? IsEsd,
+        bool? IsMsd,
+        bool? IsCold,
+        bool? IsVulnerable,
+        bool? IsHighValue,
         string? Description,
         double? LatestPrice,
         IFormFile? Image);
