@@ -314,6 +314,9 @@ namespace Storix_BE.Service.Implementation
                         YCoordinate = z.Y,
                         IsEsd = z.isESD,
                         IsMsd = z.isMSD,
+                        IsCold = z.isCold,
+                        IsVulnerable = z.isVulnerable,
+                        IsHighValue = z.isHighValue,
                         CreatedAt = now
                     };
                     warehouseStructure.StorageZones.Add(zone);
