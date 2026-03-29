@@ -161,8 +161,8 @@ namespace Storix_BE.Service.Implementation
             var suggestions = new List<TransferStaffSuggestionDto>();
             foreach (var staff in assignedStaff)
             {
-                if (staff == null || !staff.Id.HasValue) continue;
-                var staffId = staff.Id.Value;
+                if (staff == null) continue;
+                var staffId = staff.Id;
 
                 var activeTaskCount = await GetActiveTransferTaskCountAsync(companyId, staffId);
                 var assignedWarehouseCount = await _context.WarehouseAssignments

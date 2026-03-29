@@ -626,9 +626,11 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("status");
             entity.Property(e => e.TotalPrice).HasColumnName("total_price");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+            entity.Property(e => e.Reason)
+                .HasColumnType("character varying")
+                .HasColumnName("reason");
 
-            // DB-first schema currently does not contain these columns.
-            entity.Ignore(e => e.Reason);
+            // Keep ignored until DB has the column.
             entity.Ignore(e => e.ReferenceCode);
 
             entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.OutboundRequestApprovedByNavigations)
