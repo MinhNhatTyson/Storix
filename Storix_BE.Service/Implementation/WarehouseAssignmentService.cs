@@ -44,21 +44,18 @@ namespace Storix_BE.Service.Implementation
         public async Task<List<Warehouse>> GetWarehousesByCompanyAsync(int companyId, int callerRoleId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            EnsureCompanyAdministratorAsync(callerRoleId);
             return await _assignmentRepository.GetWarehousesByCompanyIdAsync(companyId);
         }
 
         public async Task<List<WarehouseAssignment>> GetAssignmentsByCompanyAsync(int companyId, int callerRoleId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            EnsureCompanyAdministratorAsync(callerRoleId);
             return await _assignmentRepository.GetAssignmentsByCompanyIdAsync(companyId);
         }
 
         public async Task<List<WarehouseAssignment>> GetAssignmentsByWarehouseAsync(int companyId, int callerRoleId, int warehouseId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            EnsureCompanyAdministratorAsync(callerRoleId);
 
             var warehouse = await _assignmentRepository.GetWarehouseByIdAsync(warehouseId);
             if (warehouse == null)
@@ -83,7 +80,6 @@ namespace Storix_BE.Service.Implementation
         public async Task<WarehouseAssignment> AssignWarehouseAsync(int companyId, int callerRoleId, AssignWarehouseRequest request)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            EnsureCompanyAdministratorAsync(callerRoleId);
 
             var user = await _userRepository.GetUserByIdWithRoleAsync(request.UserId);
             if (user == null)
@@ -134,7 +130,6 @@ namespace Storix_BE.Service.Implementation
         public async Task<bool> UnassignWarehouseAsync(int companyId, int callerRoleId, int userId, int warehouseId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-            EnsureCompanyAdministratorAsync(callerRoleId);
 
             var assignment = await _assignmentRepository.GetAssignmentAsync(userId, warehouseId);
             if (assignment == null)
@@ -319,6 +314,9 @@ namespace Storix_BE.Service.Implementation
                         YCoordinate = z.Y,
                         IsEsd = z.isESD,
                         IsMsd = z.isMSD,
+                        IsCold = z.isCold,
+                        IsVulnerable = z.isVulnerable,
+                        IsHighValue = z.isHighValue,
                         CreatedAt = now
                     };
                     warehouseStructure.StorageZones.Add(zone);
