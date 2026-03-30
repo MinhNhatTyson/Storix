@@ -626,11 +626,11 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("status");
             entity.Property(e => e.TotalPrice).HasColumnName("total_price");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+
+            // DB-first schema currently does not contain these columns.
             entity.Property(e => e.Reason)
                 .HasColumnType("character varying")
                 .HasColumnName("reason");
-
-            // Keep ignored until DB has the column.
             entity.Ignore(e => e.ReferenceCode);
 
             entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.OutboundRequestApprovedByNavigations)
@@ -752,14 +752,9 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("nextval('types_id_seq'::regclass)")
                 .HasColumnName("id");
-            entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.Name)
                 .HasColumnType("character varying")
                 .HasColumnName("name");
-
-            entity.HasOne(d => d.Company).WithMany(p => p.ProductTypes)
-                .HasForeignKey(d => d.CompanyId)
-                .HasConstraintName("fk_product_types_company_id");
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -1042,8 +1037,8 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.IsEsd).HasColumnName("isESD");
             entity.Property(e => e.IsHighValue).HasColumnName("isHighValue");
             entity.Property(e => e.IsMsd).HasColumnName("isMSD");
-            entity.Property(e => e.IsVulnerable).HasColumnName("isVulnerable");
             entity.Property(e => e.Length).HasColumnName("length");
+            entity.Property(e => e.IsVulnerable).HasColumnName("isVulnerable");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
             entity.Property(e => e.Width).HasColumnName("width");
             entity.Property(e => e.XCoordinate).HasColumnName("x_coordinate");
