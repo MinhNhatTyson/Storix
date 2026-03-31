@@ -82,7 +82,11 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<TransferOrderItem> TransferOrderItems { get; set; }
 
+    public virtual DbSet<Notification> Notifications { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<UserNotification> UserNotifications { get; set; }
 
     public virtual DbSet<Warehouse> Warehouses { get; set; }
 
@@ -96,6 +100,69 @@ public partial class StorixDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("notifications_pkey");
+
+            entity.ToTable("notifications");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Category)
+                .HasMaxLength(50)
+                .HasColumnName("category");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.IsGlobal)
+                .HasDefaultValue(false)
+                .HasColumnName("is_global");
+            entity.Property(e => e.Message).HasColumnName("message");
+            entity.Property(e => e.ReferenceId).HasColumnName("reference_id");
+            entity.Property(e => e.ReferenceType)
+                .HasMaxLength(50)
+                .HasColumnName("reference_type");
+            entity.Property(e => e.Title)
+                .HasMaxLength(255)
+                .HasColumnName("title");
+            entity.Property(e => e.Type)
+                .HasMaxLength(50)
+                .HasColumnName("type");
+        });
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("user_notifications_pkey");
+
+            entity.ToTable("user_notifications");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.IsHidden)
+                .HasDefaultValue(false)
+                .HasColumnName("is_hidden");
+            entity.Property(e => e.IsRead)
+                .HasDefaultValue(false)
+                .HasColumnName("is_read");
+            entity.Property(e => e.NotificationId).HasColumnName("notification_id");
+            entity.Property(e => e.ReadAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("read_at");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.UserNotifications)
+                .HasForeignKey(d => d.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("user_notifications_notification_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserNotifications)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("user_notifications_user_id_fkey");
+        });
         modelBuilder.Entity<Recommendation>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("recommendations_pkey");
@@ -626,11 +693,11 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("status");
             entity.Property(e => e.TotalPrice).HasColumnName("total_price");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+
+            // DB-first schema currently does not contain these columns.
             entity.Property(e => e.Reason)
                 .HasColumnType("character varying")
                 .HasColumnName("reason");
-
-            // Keep ignored until DB has the column.
             entity.Ignore(e => e.ReferenceCode);
 
             entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.OutboundRequestApprovedByNavigations)
@@ -752,14 +819,9 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("nextval('types_id_seq'::regclass)")
                 .HasColumnName("id");
-            entity.Property(e => e.CompanyId).HasColumnName("company_id");
             entity.Property(e => e.Name)
                 .HasColumnType("character varying")
                 .HasColumnName("name");
-
-            entity.HasOne(d => d.Company).WithMany(p => p.ProductTypes)
-                .HasForeignKey(d => d.CompanyId)
-                .HasConstraintName("fk_product_types_company_id");
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -1042,8 +1104,8 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.IsEsd).HasColumnName("isESD");
             entity.Property(e => e.IsHighValue).HasColumnName("isHighValue");
             entity.Property(e => e.IsMsd).HasColumnName("isMSD");
-            entity.Property(e => e.IsVulnerable).HasColumnName("isVulnerable");
             entity.Property(e => e.Length).HasColumnName("length");
+            entity.Property(e => e.IsVulnerable).HasColumnName("isVulnerable");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
             entity.Property(e => e.Width).HasColumnName("width");
             entity.Property(e => e.XCoordinate).HasColumnName("x_coordinate");

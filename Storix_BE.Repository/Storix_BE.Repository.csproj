@@ -3,10 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Storix_BE.Domain\Storix_BE.Domain.csproj" />
   </ItemGroup>
-	
-	<ItemGroup>
-		<Folder Include="Interfaces\" />
-	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />

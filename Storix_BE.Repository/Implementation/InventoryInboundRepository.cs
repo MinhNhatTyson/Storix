@@ -120,6 +120,7 @@ namespace Storix_BE.Repository.Implementation
             if (string.IsNullOrWhiteSpace(status)) throw new ArgumentException("Status is required.", nameof(status));
 
             var inbound = await _context.InboundRequests
+                .Include(r => r.RequestedByNavigation) // <- ensure company info available via RequestedByNavigation.CompanyId
                 .FirstOrDefaultAsync(r => r.Id == ticketRequestId)
                 .ConfigureAwait(false);
 

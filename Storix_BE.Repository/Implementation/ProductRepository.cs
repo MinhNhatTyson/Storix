@@ -77,7 +77,7 @@ namespace Storix_BE.Repository.Implementation
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
         public async Task<List<ProductCategory>> GetChildCategoriesAsync(int parentId)
-       {
+        {
             if (parentId <= 0) throw new InvalidOperationException("Invalid parent category id.");
 
             return await _context.ProductCategories
@@ -209,7 +209,6 @@ namespace Storix_BE.Repository.Implementation
         {
             var types = await _context.ProductTypes
                 .AsNoTracking()
-                .Where(t => t.CompanyId == companyId)
                 .OrderBy(t => t.Id)
                 .ToListAsync();
             return types;
@@ -226,7 +225,6 @@ namespace Storix_BE.Repository.Implementation
             var existsForCompany = await _context.ProductTypes
                 .AsNoTracking()
                 .Where(t => t.Name != null && t.Name.ToLower() == nameLower)
-                .Where(t => t.CompanyId == companyId)
                 .FirstOrDefaultAsync();
 
             if (existsForCompany != null)
@@ -235,7 +233,6 @@ namespace Storix_BE.Repository.Implementation
             var newType = new ProductType
             {
                 Name = name,
-                CompanyId = companyId
             };
 
             _context.ProductTypes.Add(newType);
@@ -274,18 +271,9 @@ namespace Storix_BE.Repository.Implementation
         {
             if (type == null) throw new InvalidOperationException("Type cannot be null.");
             var existing = await _context.ProductTypes
-                .Include(t => t.Products)
-                .Include(t => t.StorageZones)
                 .FirstOrDefaultAsync(t => t.Id == type.Id);
 
             if (existing == null) return false;
-
-            // Prevent deletion if referenced
-            if ((existing.Products != null && existing.Products.Any()) ||
-                (existing.StorageZones != null && existing.StorageZones.Any()))
-            {
-                throw new InvalidOperationException("Cannot remove product type because it is referenced by products or storage zones.");
-            }
 
             _context.ProductTypes.Remove(existing);
             await _context.SaveChangesAsync();
@@ -419,7 +407,7 @@ namespace Storix_BE.Repository.Implementation
                     .FirstOrDefaultAsync(p => p.Sku == dto.Sku);
 
                 var companyId = await ResolveCompanyId(dto.CompanyName);
-                var categoryId = await ResolveProductCategoryId(dto.Category);  
+                var categoryId = await ResolveProductCategoryId(dto.Category);
 
                 if (product == null)
                 {
@@ -511,45 +499,69 @@ namespace Storix_BE.Repository.Implementation
                 // ensure same company when specified
                 if (parent.CompanyId.HasValue && category.CompanyId.HasValue && parent.CompanyId != category.CompanyId)
                     throw new InvalidOperationException("Parent category does not belong to the same company as the new category.");
-                level = parent.Level +1;
+                level = parent.Level + 1;
             }
 
-                var newCategory = new ProductCategory
-                            {
-                    Name = name,
+            var newCategory = new ProductCategory
+            {
+                Name = name,
                 CompanyId = category.CompanyId,
                 ParentCategoryId = parentId,
                 Level = level,
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-                };
+            };
 
-                _context.ProductCategories.Add(newCategory);
-                await _context.SaveChangesAsync();
+            _context.ProductCategories.Add(newCategory);
+            await _context.SaveChangesAsync();
 
-                return await _context.ProductCategories
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == newCategory.Id) ?? newCategory;
+            return await _context.ProductCategories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == newCategory.Id) ?? newCategory;
         }
 
         public async Task<bool> RemoveCategoryAsync(ProductCategory category)
         {
-                if (category == null) throw new InvalidOperationException("Category cannot be null.");
-                var existing = await _context.ProductCategories
-                    .Include(c => c.InverseParentCategory)
-                    .Include(c => c.Products)
-                    .FirstOrDefaultAsync(c => c.Id == category.Id);
-    
-                if (existing == null) return false;
-    
-                if ((existing.InverseParentCategory != null && existing.InverseParentCategory.Any()) ||
-                    (existing.Products != null && existing.Products.Any()))
-                    {
-                        throw new InvalidOperationException("Cannot remove product category because it has child categories or products referencing it.");
-                                    }
-    
-                _context.ProductCategories.Remove(existing);
-                await _context.SaveChangesAsync();
-                return true;
+            if (category == null) throw new InvalidOperationException("Category cannot be null.");
+            var existing = await _context.ProductCategories
+                .Include(c => c.InverseParentCategory)
+                .Include(c => c.Products)
+                .FirstOrDefaultAsync(c => c.Id == category.Id);
+
+            if (existing == null) return false;
+
+            if ((existing.InverseParentCategory != null && existing.InverseParentCategory.Any()) ||
+                (existing.Products != null && existing.Products.Any()))
+            {
+                throw new InvalidOperationException("Cannot remove product category because it has child categories or products referencing it.");
             }
+
+            _context.ProductCategories.Remove(existing);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task UpdateProductPopularityAsync()
+        {
+            // Example using Raw SQL in Entity Framework
+            var sql = @"UPDATE products
+                    SET popularity_score = sub.new_score
+                    FROM (
+                        SELECT 
+                            p.id,
+                            (COALESCE(SUM(ooi.quantity), 0) * 0.6) + 
+                            (CASE 
+                                WHEN MAX(it.created_at) IS NULL THEN 0 
+                                ELSE (30 - EXTRACT(DAY FROM (NOW() - MAX(it.created_at)))) 
+                             END * 0.4) as new_score
+                        FROM products p
+                        LEFT JOIN outbound_order_items ooi ON p.id = ooi.product_id
+                        LEFT JOIN inventory_transactions it ON p.id = it.product_id 
+                            AND it.transaction_type = 'OUT'
+                        WHERE it.created_at > NOW() - INTERVAL '30 days' OR it.created_at IS NULL
+                        GROUP BY p.id
+                    ) AS sub
+                    WHERE products.id = sub.id;";
+            await _context.Database.ExecuteSqlRawAsync(sql);
+        }
     }
 }
