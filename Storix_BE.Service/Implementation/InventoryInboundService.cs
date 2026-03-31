@@ -15,10 +15,12 @@ namespace Storix_BE.Service.Implementation
     public class InventoryInboundService : IInventoryInboundService
     {
         private readonly IInventoryInboundRepository _repo;
+        private readonly INotificationService _notificationService;
 
-        public InventoryInboundService(IInventoryInboundRepository repo)
+        public InventoryInboundService(IInventoryInboundRepository repo, INotificationService notificationService)
         {
             _repo = repo;
+            _notificationService = notificationService;
         }
 
         public async Task<InboundRequest> CreateInboundRequestAsync(CreateInboundRequestRequest request)
@@ -188,8 +190,30 @@ namespace Storix_BE.Service.Implementation
             if (approverId <= 0) throw new ArgumentException("Invalid approver id.", nameof(approverId));
             if (string.IsNullOrWhiteSpace(status)) throw new ArgumentException("Status is required.", nameof(status));
 
-            var id = await _repo.UpdateInventoryInboundTicketRequestStatus(ticketRequestId, approverId, status);
-            return id;
+            var inbound = await _repo.UpdateInventoryInboundTicketRequestStatus(ticketRequestId, approverId, status);
+
+            // Send notification to managers when approved
+            if (string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase))
+            {
+                var companyId = inbound.RequestedByNavigation?.CompanyId ?? inbound.RequestedByNavigation?.CompanyId;
+                if (companyId.HasValue && companyId.Value > 0)
+                {
+                    var title = "Inbound request approved";
+                    var message = $"Inbound request '{inbound.Code}' has been approved.";
+                    await _notificationService.SendNotificationToManagersAsync(
+                        companyId.Value,
+                        title,
+                        message,
+                        type: "InboundRequest",
+                        category: "Inbound",
+                        referenceType: "InboundRequest",
+                        referenceId: inbound.Id,
+                        createdByUserId: approverId
+                    ).ConfigureAwait(false);
+                }
+            }
+
+            return inbound;
         }
 
         public async Task<InboundOrder> CreateTicketFromRequestAsync(int inboundRequestId, int createdBy, int? staffId)
