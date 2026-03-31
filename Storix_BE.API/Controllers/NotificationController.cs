@@ -14,7 +14,7 @@ namespace Storix_BE.API.Controllers
             _service = service;
         }
 
-        [HttpGet("user/{userId:int}")]
+        [HttpGet("get-notifications/{userId:int}")]
         public async Task<IActionResult> GetUserNotifications(int userId, [FromQuery] int skip = 0, [FromQuery] int take = 50)
         {
             if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
@@ -22,7 +22,7 @@ namespace Storix_BE.API.Controllers
             return Ok(items);
         }
 
-        [HttpPut("user/{userId:int}/mark-read/{userNotificationId:int}")]
+        [HttpPut("mark-as-read/{userId:int}/{userNotificationId:int}")]
         public async Task<IActionResult> MarkAsRead(int userId, int userNotificationId)
         {
             if (userId <= 0 || userNotificationId <= 0) return BadRequest(new { message = "Invalid parameters." });

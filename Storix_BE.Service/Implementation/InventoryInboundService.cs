@@ -212,6 +212,26 @@ namespace Storix_BE.Service.Implementation
                     ).ConfigureAwait(false);
                 }
             }
+            // Send notification to managers when approved
+            if (string.Equals(status, "Rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                var companyId = inbound.RequestedByNavigation?.CompanyId ?? inbound.RequestedByNavigation?.CompanyId;
+                if (companyId.HasValue && companyId.Value > 0)
+                {
+                    var title = "Inbound request rejected";
+                    var message = $"Inbound request '{inbound.Code}' has been rejected.";
+                    await _notificationService.SendNotificationToManagersAsync(
+                        companyId.Value,
+                        title,
+                        message,
+                        type: "InboundRequest",
+                        category: "Inbound",
+                        referenceType: "InboundRequest",
+                        referenceId: inbound.Id,
+                        createdByUserId: approverId
+                    ).ConfigureAwait(false);
+                }
+            }
 
             return inbound;
         }
