@@ -629,9 +629,7 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.Reason)
                 .HasColumnType("character varying")
                 .HasColumnName("reason");
-
-            // Keep ignored until DB has the column.
-            entity.Ignore(e => e.ReferenceCode);
+            entity.Property(e => e.ReferenceCode).HasColumnName("reference_code");
 
             entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.OutboundRequestApprovedByNavigations)
                 .HasForeignKey(d => d.ApprovedBy)
@@ -1042,7 +1040,6 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.IsEsd).HasColumnName("isESD");
             entity.Property(e => e.IsHighValue).HasColumnName("isHighValue");
             entity.Property(e => e.IsMsd).HasColumnName("isMSD");
-            entity.Property(e => e.IsVulnerable).HasColumnName("isVulnerable");
             entity.Property(e => e.Length).HasColumnName("length");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
             entity.Property(e => e.Width).HasColumnName("width");

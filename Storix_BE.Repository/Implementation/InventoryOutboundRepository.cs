@@ -297,6 +297,55 @@ namespace Storix_BE.Repository.Implementation
                     throw new InvalidOperationException("Each item must have Quantity > 0.");
             }
 
+            // Persist selected bin allocations (staff picking) into ActivityLogs.
+            // This does not mutate inventory; actual stock deduction happens on manager confirm.
+            var placementList = (placements ?? Enumerable.Empty<IInventoryOutboundRepository.InventoryPlacementDto>())
+                .Where(p => p.OutboundOrderItemId > 0 && p.ProductId > 0 && p.Quantity > 0 && !string.IsNullOrWhiteSpace(p.BinIdCode))
+                .ToList();
+
+            if (placementList.Any())
+            {
+                if (!order.WarehouseId.HasValue || order.WarehouseId.Value <= 0)
+                    throw new InvalidOperationException("OutboundOrder must have a valid WarehouseId to assign locations.");
+
+                var binCodes = placementList.Select(p => p.BinIdCode).Distinct().ToList();
+                var bins = await _context.ShelfLevelBins
+                    .Include(b => b.Level)
+                        .ThenInclude(l => l!.Shelf)
+                            .ThenInclude(s => s!.Zone)
+                    .Where(b => b.IdCode != null && binCodes.Contains(b.IdCode))
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+
+                var binByCode = bins
+                    .Where(b => !string.IsNullOrWhiteSpace(b.IdCode))
+                    .GroupBy(b => b.IdCode!)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                foreach (var p in placementList)
+                {
+                    if (!binByCode.TryGetValue(p.BinIdCode, out var bin))
+                        throw new InvalidOperationException($"ShelfLevelBin with IdCode {p.BinIdCode} not found.");
+
+                    var whId = bin.Level?.Shelf?.Zone?.WarehouseId;
+                    if (!whId.HasValue || whId.Value != order.WarehouseId.Value)
+                        throw new InvalidOperationException($"Bin {p.BinIdCode} is invalid or does not belong to outbound warehouse.");
+                }
+
+                var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                foreach (var p in placementList)
+                {
+                    _context.ActivityLogs.Add(new ActivityLog
+                    {
+                        UserId = order.StaffId.Value,
+                        Entity = "OutboundOrder",
+                        EntityId = order.Id,
+                        Action = $"OUTBOUND_ITEM_LOCATION_ASSIGN:ORDER={order.Id};ITEM={p.OutboundOrderItemId};PRODUCT={p.ProductId};BIN={p.BinIdCode};QTY={p.Quantity}",
+                        Timestamp = now
+                    });
+                }
+            }
+
             var outboundRequestIds = order.OutboundOrderItems
                 .Where(x => x.OutboundRequestId.HasValue)
                 .Select(x => x.OutboundRequestId!.Value)
@@ -438,6 +487,212 @@ namespace Storix_BE.Repository.Implementation
             }
 
             return order;
+        }
+
+        public async Task<IReadOnlyList<IInventoryOutboundRepository.OutboundOrderItemAvailableLocationsDto>> GetOutboundOrderItemAvailableLocationsAsync(int outboundOrderId)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+
+            var order = await _context.OutboundOrders
+                .AsNoTracking()
+                .Include(o => o.OutboundOrderItems)
+                    .ThenInclude(i => i.Product)
+                .FirstOrDefaultAsync(o => o.Id == outboundOrderId)
+                .ConfigureAwait(false);
+
+            if (order == null)
+                throw new InvalidOperationException($"OutboundOrder with id {outboundOrderId} not found.");
+
+            if (!order.WarehouseId.HasValue || order.WarehouseId.Value <= 0)
+                throw new InvalidOperationException("OutboundOrder must have a valid WarehouseId.");
+
+            var warehouseId = order.WarehouseId.Value;
+
+            var itemInfos = order.OutboundOrderItems
+                .Where(i => i.Id > 0 && i.ProductId.HasValue && (i.Quantity ?? 0) > 0)
+                .Select(i => new
+                {
+                    OutboundOrderItemId = i.Id,
+                    ProductId = i.ProductId!.Value,
+                    ProductName = i.Product?.Name,
+                    RequiredQuantity = i.Quantity ?? 0
+                })
+                .ToList();
+
+            if (!itemInfos.Any())
+                return Array.Empty<IInventoryOutboundRepository.OutboundOrderItemAvailableLocationsDto>();
+
+            var productIds = itemInfos.Select(x => x.ProductId).Distinct().ToList();
+
+            var inventories = await _context.Inventories
+                .AsNoTracking()
+                .Where(i => i.WarehouseId == warehouseId && i.ProductId.HasValue && productIds.Contains(i.ProductId.Value))
+                .Select(i => new { i.Id, ProductId = i.ProductId!.Value })
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var inventoryIdByProductId = inventories
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(g => g.Key, g => g.First().Id);
+
+            var inventoryIds = inventories.Select(x => x.Id).Distinct().ToList();
+
+            var shelfStocks = await _context.InventoryLocations
+                .AsNoTracking()
+                .Where(il => il.InventoryId.HasValue && inventoryIds.Contains(il.InventoryId.Value))
+                .Include(il => il.Shelf)
+                    .ThenInclude(s => s!.Zone)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            // Only bins explicitly mapped to these inventories; note: quantity per bin is not tracked in current schema.
+            var bins = await _context.ShelfLevelBins
+                .AsNoTracking()
+                .Where(b => b.InventoryId.HasValue && inventoryIds.Contains(b.InventoryId.Value))
+                .Include(b => b.Level)
+                    .ThenInclude(l => l!.Shelf)
+                        .ThenInclude(s => s!.Zone)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var shelvesByProduct = shelfStocks
+                .Where(il => il.InventoryId.HasValue && il.ShelfId.HasValue && (il.Quantity ?? 0) > 0
+                             && il.Shelf != null
+                             && il.Shelf.Zone != null
+                             && il.Shelf.Zone.WarehouseId == warehouseId)
+                .GroupBy(il =>
+                {
+                    var invId = il.InventoryId!.Value;
+                    var productId = inventories.First(x => x.Id == invId).ProductId;
+                    return productId;
+                })
+                .ToDictionary(
+                    g => g.Key,
+                    g => (IReadOnlyList<IInventoryOutboundRepository.OutboundAvailableShelfDto>)g
+                        .OrderByDescending(x => x.Quantity ?? 0)
+                        .Select(x => new IInventoryOutboundRepository.OutboundAvailableShelfDto(
+                            x.ShelfId!.Value,
+                            x.Shelf!.Code,
+                            x.Shelf!.IdCode,
+                            x.Shelf!.ZoneId,
+                            x.Shelf!.Zone!.WarehouseId,
+                            x.Quantity ?? 0))
+                        .ToList());
+
+            var binsByProduct = bins
+                .Where(b => b.InventoryId.HasValue
+                            && b.Level != null
+                            && b.Level.Shelf != null
+                            && b.Level.Shelf.Zone != null
+                            && b.Level.Shelf.Zone.WarehouseId == warehouseId)
+                .GroupBy(b =>
+                {
+                    var invId = b.InventoryId!.Value;
+                    var productId = inventories.First(x => x.Id == invId).ProductId;
+                    return productId;
+                })
+                .ToDictionary(
+                    g => g.Key,
+                    g => (IReadOnlyList<IInventoryOutboundRepository.OutboundAvailableBinDto>)g
+                        .Select(b => new IInventoryOutboundRepository.OutboundAvailableBinDto(
+                            b.Id,
+                            b.Code,
+                            b.IdCode,
+                            b.LevelId,
+                            b.Level!.ShelfId,
+                            b.InventoryId,
+                            b.Percentage,
+                            b.Width,
+                            b.Height,
+                            b.Length))
+                        .ToList());
+
+            var results = itemInfos.Select(ii =>
+            {
+                var shelves = shelvesByProduct.TryGetValue(ii.ProductId, out var s) ? s : Array.Empty<IInventoryOutboundRepository.OutboundAvailableShelfDto>();
+                var availableBins = binsByProduct.TryGetValue(ii.ProductId, out var b) ? b : Array.Empty<IInventoryOutboundRepository.OutboundAvailableBinDto>();
+
+                return new IInventoryOutboundRepository.OutboundOrderItemAvailableLocationsDto(
+                    ii.OutboundOrderItemId,
+                    ii.ProductId,
+                    ii.ProductName,
+                    ii.RequiredQuantity,
+                    shelves,
+                    availableBins
+                );
+            }).ToList();
+
+            return results;
+        }
+
+        public async Task<IReadOnlyList<IInventoryOutboundRepository.OutboundOrderItemSelectedLocationDto>> GetOutboundOrderItemSelectedLocationsAsync(int outboundOrderId)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+
+            // Validate order exists early for consistent 404 behavior.
+            var exists = await _context.OutboundOrders
+                .AsNoTracking()
+                .AnyAsync(o => o.Id == outboundOrderId)
+                .ConfigureAwait(false);
+
+            if (!exists)
+                throw new InvalidOperationException($"OutboundOrder with id {outboundOrderId} not found.");
+
+            var logs = await _context.ActivityLogs
+                .AsNoTracking()
+                .Where(l => l.Entity == "OutboundOrder"
+                            && l.EntityId == outboundOrderId
+                            && l.Action != null
+                            && l.Action.StartsWith("OUTBOUND_ITEM_LOCATION_ASSIGN:"))
+                .OrderBy(l => l.Timestamp)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var result = new List<IInventoryOutboundRepository.OutboundOrderItemSelectedLocationDto>();
+            foreach (var log in logs)
+            {
+                var action = log.Action;
+                if (string.IsNullOrWhiteSpace(action)) continue;
+
+                // Format: OUTBOUND_ITEM_LOCATION_ASSIGN:ORDER=..;ITEM=..;PRODUCT=..;BIN=..;QTY=..
+                var idx = action.IndexOf(':');
+                if (idx < 0 || idx >= action.Length - 1) continue;
+                var payload = action.Substring(idx + 1);
+
+                var parts = payload.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                int itemId = 0;
+                int productId = 0;
+                string? bin = null;
+                int qty = 0;
+
+                foreach (var part in parts)
+                {
+                    var kv = part.Split('=', 2, StringSplitOptions.TrimEntries);
+                    if (kv.Length != 2) continue;
+
+                    if (kv[0].Equals("ITEM", StringComparison.OrdinalIgnoreCase))
+                        int.TryParse(kv[1], out itemId);
+                    else if (kv[0].Equals("PRODUCT", StringComparison.OrdinalIgnoreCase))
+                        int.TryParse(kv[1], out productId);
+                    else if (kv[0].Equals("BIN", StringComparison.OrdinalIgnoreCase))
+                        bin = kv[1];
+                    else if (kv[0].Equals("QTY", StringComparison.OrdinalIgnoreCase))
+                        int.TryParse(kv[1], out qty);
+                }
+
+                if (itemId <= 0 || productId <= 0 || qty <= 0 || string.IsNullOrWhiteSpace(bin))
+                    continue;
+
+                result.Add(new IInventoryOutboundRepository.OutboundOrderItemSelectedLocationDto(
+                    itemId,
+                    productId,
+                    bin,
+                    qty,
+                    log.Timestamp
+                ));
+            }
+
+            return result;
         }
 
         public async Task<OutboundOrder> ConfirmOutboundOrderAsync(
@@ -793,6 +1048,22 @@ namespace Storix_BE.Repository.Implementation
                 .ConfigureAwait(false);
         }
 
+        public async Task<List<OutboundRequest>> GetOutboundRequestsByWarehouseIdAsync(int warehouseId)
+        {
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+
+            return await _context.OutboundRequests
+                .Include(r => r.OutboundOrderItems)
+                    .ThenInclude(i => i.Product)
+                .Include(r => r.Warehouse)
+                .Include(r => r.RequestedByNavigation)
+                .Include(r => r.ApprovedByNavigation)
+                .Where(r => r.WarehouseId == warehouseId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
+        }
+
         public async Task<OutboundRequest> GetOutboundRequestByIdAsync(int companyId, int id)
         {
             var request = await _context.OutboundRequests
@@ -828,6 +1099,21 @@ namespace Storix_BE.Repository.Implementation
             }
 
             return await query
+                .OrderByDescending(o => o.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
+        }
+
+        public async Task<List<OutboundOrder>> GetOutboundOrdersByWarehouseIdAsync(int warehouseId)
+        {
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+
+            return await _context.OutboundOrders
+                .Include(o => o.OutboundOrderItems)
+                    .ThenInclude(i => i.Product)
+                .Include(o => o.Warehouse)
+                .Include(o => o.CreatedByNavigation)
+                .Where(o => o.WarehouseId == warehouseId)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync()
                 .ConfigureAwait(false);

@@ -137,6 +137,9 @@ namespace Storix_BE.Service.Implementation
         private static OutboundOrderItemDto MapOutboundOrderItem(OutboundOrderItem item)
         {
             var p = item.Product;
+            var displayPrice = item.CostPrice ?? item.Price;
+            // Backward compatible: many UIs bind to Price; if sale Price is null, return the computed cost.
+            var priceForUi = item.Price ?? item.CostPrice;
             return new OutboundOrderItemDto(
                 item.Id,
                 item.ProductId,
@@ -144,9 +147,10 @@ namespace Storix_BE.Service.Implementation
                 item.ExpectedQuantity,
                 item.ReceivedQuantity,
                 item.Quantity,
-                item.Price,
+                priceForUi,
                 item.CostPrice,
-                item.PricingMethod);
+                item.PricingMethod,
+                displayPrice);
         }
 
         private static OutboundRequestDto MapOutboundRequestToDto(OutboundRequest r)
@@ -194,6 +198,13 @@ namespace Storix_BE.Service.Implementation
             return items.Select(MapOutboundRequestToDto).ToList();
         }
 
+        public async Task<List<OutboundRequestDto>> GetOutboundRequestsByWarehouseIdAsync(int warehouseId)
+        {
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+            var items = await _repo.GetOutboundRequestsByWarehouseIdAsync(warehouseId);
+            return items.Select(MapOutboundRequestToDto).ToList();
+        }
+
         public async Task<OutboundRequestDto> GetOutboundRequestByIdAsync(int companyId, int id)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
@@ -206,6 +217,13 @@ namespace Storix_BE.Service.Implementation
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
             var items = await _repo.GetAllOutboundOrdersAsync(companyId, warehouseId);
+            return items.Select(MapOutboundOrderToDto).ToList();
+        }
+
+        public async Task<List<OutboundOrderDto>> GetOutboundOrdersByWarehouseIdAsync(int warehouseId)
+        {
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+            var items = await _repo.GetOutboundOrdersByWarehouseIdAsync(warehouseId);
             return items.Select(MapOutboundOrderToDto).ToList();
         }
 
@@ -223,6 +241,50 @@ namespace Storix_BE.Service.Implementation
 
             var items = await _repo.GetOutboundOrdersByStaffAsync(companyId, staffId);
             return items.Select(MapOutboundOrderToDto).ToList();
+        }
+
+        public async Task<IReadOnlyList<OutboundOrderItemAvailableLocationsDto>> GetOutboundOrderItemAvailableLocationsAsync(int outboundOrderId)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            var data = await _repo.GetOutboundOrderItemAvailableLocationsAsync(outboundOrderId).ConfigureAwait(false);
+
+            return data.Select(x => new OutboundOrderItemAvailableLocationsDto(
+                x.OutboundOrderItemId,
+                x.ProductId,
+                x.ProductName,
+                x.RequiredQuantity,
+                x.AvailableShelves.Select(s => new OutboundAvailableShelfDto(
+                    s.ShelfId,
+                    s.ShelfCode,
+                    s.ShelfIdCode,
+                    s.ZoneId,
+                    s.WarehouseId,
+                    s.AvailableQuantity)).ToList(),
+                x.AvailableBins.Select(b => new OutboundAvailableBinDto(
+                    b.BinId,
+                    b.BinCode,
+                    b.BinIdCode,
+                    b.LevelId,
+                    b.ShelfId,
+                    b.InventoryId,
+                    b.Percentage,
+                    b.Width,
+                    b.Height,
+                    b.Length)).ToList()
+            )).ToList();
+        }
+
+        public async Task<IReadOnlyList<OutboundOrderItemSelectedLocationDto>> GetOutboundOrderItemSelectedLocationsAsync(int outboundOrderId)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            var data = await _repo.GetOutboundOrderItemSelectedLocationsAsync(outboundOrderId).ConfigureAwait(false);
+
+            return data.Select(x => new OutboundOrderItemSelectedLocationDto(
+                x.OutboundOrderItemId,
+                x.ProductId,
+                x.BinIdCode,
+                x.Quantity,
+                x.Timestamp)).ToList();
         }
     }
 }
