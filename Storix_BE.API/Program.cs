@@ -1,12 +1,13 @@
+using CloudinaryDotNet;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
 using Serilog;
 using Storix_BE.API.Configuration;
+using Storix_BE.API.Hubs;
 // using Storix_BE.API.Filters; // tạm tắt subscription filter do deploy DB chưa có bảng subscriptions
 using Storix_BE.Domain.Context;
 using Storix_BE.Service.Implementation;
 using System.Text.Json.Serialization;
-using CloudinaryDotNet;
 
 
 QuestPDF.Settings.License = LicenseType.Community;
@@ -82,7 +83,7 @@ builder.Services.AddCors(opt =>
     });
 });
 builder.Services.AddEndpointsApiExplorer();
-
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 app.UseSerilogRequestLogging();
@@ -99,5 +100,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
