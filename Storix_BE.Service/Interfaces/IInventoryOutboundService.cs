@@ -70,6 +70,7 @@ namespace Storix_BE.Service.Interfaces
         int Id,
         int? ProductId,
         string? ProductName,
+        string? ProductSku,
         int? ExpectedQuantity,
         int? ReceivedQuantity,
         int? Quantity,

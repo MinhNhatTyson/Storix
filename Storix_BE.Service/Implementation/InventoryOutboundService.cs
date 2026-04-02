@@ -144,6 +144,7 @@ namespace Storix_BE.Service.Implementation
                 item.Id,
                 item.ProductId,
                 p?.Name,
+                p?.Sku,
                 item.ExpectedQuantity,
                 item.ReceivedQuantity,
                 item.Quantity,
