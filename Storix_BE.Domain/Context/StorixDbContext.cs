@@ -994,6 +994,10 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.InventoryCount).WithMany(p => p.InventoryCountItems)
                 .HasForeignKey(d => d.InventoryCountId)
                 .HasConstraintName("fk_stock_count_items_stock_count_id");
+
+            entity.HasOne(d => d.Location).WithMany(p => p.StockCountItems)
+                .HasForeignKey(d => d.LocationId)
+                .HasConstraintName("fk_stock_count_items_location_id");
         });
 
         modelBuilder.Entity<InventoryCountsTicket>(entity =>
@@ -1046,6 +1050,10 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.Warehouse).WithMany(p => p.InventoryCountsTickets)
                 .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("fk_stock_counts_tickets_warehouse_id");
+
+            entity.HasOne(d => d.Scope).WithMany(p => p.StockCountsTickets)
+                .HasForeignKey(d => d.ScopeId)
+                .HasConstraintName("fk_stock_counts_tickets_scope_id");
         });
 
         modelBuilder.Entity<StorageForecast>(entity =>

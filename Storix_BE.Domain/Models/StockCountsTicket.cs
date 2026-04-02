@@ -42,4 +42,6 @@ public partial class InventoryCountsTicket
     public virtual ICollection<InventoryCountItem> InventoryCountItems { get; set; } = new List<InventoryCountItem>();
 
     public virtual Warehouse? Warehouse { get; set; }
+
+    public virtual StorageZone? Scope { get; set; }
 }

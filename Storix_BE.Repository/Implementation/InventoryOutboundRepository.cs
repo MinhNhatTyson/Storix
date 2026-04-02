@@ -87,6 +87,20 @@ namespace Storix_BE.Repository.Implementation
             {
                 throw new InvalidOperationException("WarehouseId is required for outbound requests.");
             }
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            var warehouseId = request.WarehouseId!.Value;
+
+            var hasActiveInventoryCount = await _context.InventoryCountsTickets
+                .AsNoTracking()
+                .AnyAsync(t =>
+                    t.WarehouseId == warehouseId
+                    && t.ExecutedDay != null
+                    // If FinishedDay is null -> count still in progress; if not null -> check current time is within the executed..finished window
+                    && (t.FinishedDay == null || (t.ExecutedDay <= now && t.FinishedDay >= now))
+                ).ConfigureAwait(false);
+
+            if (hasActiveInventoryCount)
+                throw new InvalidOperationException("Cannot create outbound requests during an active inventory count in this warehouse.");
 
             await EnsureStockAvailabilityAsync(request.WarehouseId.Value, request.OutboundOrderItems)
                 .ConfigureAwait(false);

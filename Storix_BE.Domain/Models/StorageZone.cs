@@ -38,4 +38,6 @@ public partial class StorageZone
     public bool? IsHighValue { get; set; }
     public virtual ICollection<Shelf> Shelves { get; set; } = new List<Shelf>();
     public virtual Warehouse? Warehouse { get; set; }
+
+    public virtual ICollection<InventoryCountsTicket> StockCountsTickets { get; set; } = new List<InventoryCountsTicket>();
 }

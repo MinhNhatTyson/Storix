@@ -38,4 +38,6 @@ public partial class InventoryCountItem
     public virtual Product? Product { get; set; }
 
     public virtual InventoryCountsTicket? InventoryCount { get; set; }
+
+    public virtual InventoryLocation? Location { get; set; }
 }
