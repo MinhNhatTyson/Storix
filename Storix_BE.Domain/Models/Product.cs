@@ -39,15 +39,16 @@ public partial class Product
 
     public double? PopularityScore { get; set; }
 
-    public virtual ProductCategory? Category { get; set; }
-
-    public virtual Company? Company { get; set; }
-
     public bool? IsCold { get; set; }
 
     public bool? IsVulnerable { get; set; }
 
     public bool? IsHighValue { get; set; }
+
+    public virtual ProductCategory? Category { get; set; }
+
+    public virtual Company? Company { get; set; }
+
     public virtual ICollection<InboundOrderItem> InboundOrderItems { get; set; } = new List<InboundOrderItem>();
 
     public virtual ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();

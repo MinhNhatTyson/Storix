@@ -13,11 +13,16 @@ namespace Storix_BE.Service.Implementation
     {
         private readonly INotificationRepository _notificationRepo;
         private readonly IUserRepository _userRepo;
+        private readonly INotificationPublisher _publisher;
 
-        public NotificationService(INotificationRepository notificationRepo, IUserRepository userRepo)
+        public NotificationService(
+            INotificationRepository notificationRepo,
+            IUserRepository userRepo,
+            INotificationPublisher publisher)
         {
             _notificationRepo = notificationRepo;
             _userRepo = userRepo;
+            _publisher = publisher;
         }
 
         public async Task SendNotificationToManagersAsync(int companyId, string title, string message, string type, string category, string referenceType, int? referenceId, int? createdByUserId)
@@ -25,7 +30,6 @@ namespace Storix_BE.Service.Implementation
             if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
             if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("Title is required.", nameof(title));
 
-            // Create notification record
             var notification = new Notification
             {
                 CompanyId = companyId,
@@ -40,14 +44,13 @@ namespace Storix_BE.Service.Implementation
 
             notification = await _notificationRepo.CreateAsync(notification).ConfigureAwait(false);
 
-            // Resolve managers in the company (Role name "Manager")
+            // resolve managers
             var users = await _userRepo.GetUsersByCompanyIdAsync(companyId).ConfigureAwait(false);
             var managers = users.Where(u => u.Role != null && string.Equals(u.Role.Name, "Manager", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // Create UserNotification for each manager
             foreach (var mgr in managers)
             {
-                var un = new UserNotification
+                var userNotification = new UserNotification
                 {
                     NotificationId = notification.Id,
                     UserId = mgr.Id,
@@ -55,19 +58,55 @@ namespace Storix_BE.Service.Implementation
                     IsHidden = false,
                     CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
                 };
-                await _notificationRepo.CreateUserNotificationAsync(un).ConfigureAwait(false);
+
+                await _notificationRepo.CreateUserNotificationAsync(userNotification).ConfigureAwait(false);
+
+                var payload = new
+                {
+                    UserNotificationId = userNotification.Id,
+                    NotificationId = notification.Id,
+                    notification.Title,
+                    notification.Message,
+                    notification.Type,
+                    notification.Category,
+                    notification.ReferenceType,
+                    notification.ReferenceId,
+                    CreatedAt = notification.CreatedAt
+                };
+
+                // fire-and-forget is acceptable in many cases, but we await to surface publish failures if needed
+                try
+                {
+                    await _publisher.PublishToUserAsync(mgr.Id, payload).ConfigureAwait(false);
+                }
+                catch
+                {
+                    Console.WriteLine($"Failed to publish notification to user {mgr.Id}. NotificationId: {notification.Id}");
+                }
             }
         }
 
-        public async Task<List<UserNotification>> GetUserNotificationsAsync(int userId, int skip = 0, int take = 50)
+        public Task<List<UserNotification>> GetUserNotificationsAsync(int userId, int skip = 0, int take = 50)
         {
-            return await _notificationRepo.GetUserNotificationsAsync(userId, skip, take).ConfigureAwait(false);
+            return _notificationRepo.GetUserNotificationsAsync(userId, skip, take);
         }
 
         public async Task<bool> MarkAsReadAsync(int userNotificationId, int userId)
         {
             var affected = await _notificationRepo.MarkUserNotificationAsReadAsync(userNotificationId, userId).ConfigureAwait(false);
-            return affected > 0;
+            if (affected <= 0) return false;
+
+            // Optionally publish read-state update to the user group so UI can update realtime
+            try
+            {
+                await _publisher.PublishToUserAsync(userId, new { Action = "MarkedRead", UserNotificationId = userNotificationId }).ConfigureAwait(false);
+            }
+            catch
+            {
+                Console.WriteLine($"Failed to publish read-state update for user {userId}. UserNotificationId: {userNotificationId}");
+            }
+
+            return true;
         }
     }
 }
