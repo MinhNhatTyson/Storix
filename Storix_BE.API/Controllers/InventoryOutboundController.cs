@@ -177,6 +177,88 @@ namespace Storix_BE.API.Controllers
             }
         }
 
+        [HttpPost("tickets/{ticketId:int}/issues")]
+        public async Task<IActionResult> CreateTicketIssue(int ticketId, [FromBody] CreateOutboundIssueRequest payload)
+        {
+            if (ticketId <= 0) return BadRequest(new { message = "Invalid ticket id." });
+
+            try
+            {
+                var authError = EnsureRole(4, "Only Staff (roleId=4) can create outbound issues.");
+                if (authError != null) return authError;
+
+                var issue = await _service.CreateOutboundIssueAsync(ticketId, payload);
+                return Ok(issue);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("tickets/{ticketId:int}/issues/{issueId:int}")]
+        public async Task<IActionResult> UpdateTicketIssue(int ticketId, int issueId, [FromBody] UpdateOutboundIssueRequest payload)
+        {
+            if (ticketId <= 0) return BadRequest(new { message = "Invalid ticket id." });
+            if (issueId <= 0) return BadRequest(new { message = "Invalid issue id." });
+
+            try
+            {
+                var authError = EnsureRole(4, "Only Staff (roleId=4) can update outbound issues.");
+                if (authError != null) return authError;
+
+                var issue = await _service.UpdateOutboundIssueAsync(ticketId, issueId, payload);
+                return Ok(issue);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("tickets/{ticketId:int}/issues")]
+        public async Task<IActionResult> GetTicketIssues(int ticketId)
+        {
+            if (ticketId <= 0) return BadRequest(new { message = "Invalid ticket id." });
+
+            try
+            {
+                var authError = EnsureRoleIn(new[] { 3, 4 }, "Only Manager (roleId=3) or Staff (roleId=4) can view outbound issues.");
+                if (authError != null) return authError;
+
+                var issues = await _service.GetOutboundIssuesByTicketAsync(ticketId);
+                return Ok(issues);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
         [HttpGet("requests/{companyId:int}")]
         public async Task<IActionResult> GetAllRequests(int companyId, [FromQuery] int? warehouseId)
         {

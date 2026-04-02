@@ -29,6 +29,10 @@ namespace Storix_BE.Service.Interfaces
 
         Task<IReadOnlyList<OutboundOrderItemAvailableLocationsDto>> GetOutboundOrderItemAvailableLocationsAsync(int outboundOrderId);
         Task<IReadOnlyList<OutboundOrderItemSelectedLocationDto>> GetOutboundOrderItemSelectedLocationsAsync(int outboundOrderId);
+
+        Task<OutboundIssueDto> CreateOutboundIssueAsync(int outboundOrderId, CreateOutboundIssueRequest request);
+        Task<OutboundIssueDto> UpdateOutboundIssueAsync(int outboundOrderId, int issueId, UpdateOutboundIssueRequest request);
+        Task<List<OutboundIssueDto>> GetOutboundIssuesByTicketAsync(int outboundOrderId);
     }
 
     public sealed record CreateOutboundOrderItemRequest(int ProductId, int Quantity);
@@ -108,6 +112,36 @@ namespace Storix_BE.Service.Interfaces
         string BinIdCode,
         int Quantity,
         DateTime? Timestamp);
+
+    public sealed record CreateOutboundIssueRequest(
+        int ReportedBy,
+        int OutboundOrderItemId,
+        int IssueQuantity,
+        string Reason,
+        string? Note,
+        string? ImageUrl);
+
+    public sealed record UpdateOutboundIssueRequest(
+        int UpdatedBy,
+        int? OutboundOrderItemId,
+        int? IssueQuantity,
+        string? Reason,
+        string? Note,
+        string? ImageUrl);
+
+    public sealed record OutboundIssueDto(
+        int IssueId,
+        int OutboundOrderId,
+        int OutboundOrderItemId,
+        int ProductId,
+        int IssueQuantity,
+        string Reason,
+        string? Note,
+        string? ImageUrl,
+        int ReportedBy,
+        DateTime? ReportedAt,
+        int? UpdatedBy,
+        DateTime? UpdatedAt);
 
     public sealed record OutboundRequestDto(
         int Id,

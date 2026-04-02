@@ -286,5 +286,89 @@ namespace Storix_BE.Service.Implementation
                 x.Quantity,
                 x.Timestamp)).ToList();
         }
+
+        public async Task<OutboundIssueDto> CreateOutboundIssueAsync(int outboundOrderId, CreateOutboundIssueRequest request)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (request.ReportedBy <= 0) throw new ArgumentException("Invalid reportedBy.", nameof(request.ReportedBy));
+            if (request.OutboundOrderItemId <= 0) throw new ArgumentException("Invalid outboundOrderItemId.", nameof(request.OutboundOrderItemId));
+            if (request.IssueQuantity <= 0) throw new ArgumentException("IssueQuantity must be > 0.", nameof(request.IssueQuantity));
+            if (string.IsNullOrWhiteSpace(request.Reason)) throw new ArgumentException("Reason is required.", nameof(request.Reason));
+
+            var dto = await _repo.CreateOutboundIssueAsync(
+                outboundOrderId,
+                request.ReportedBy,
+                request.OutboundOrderItemId,
+                request.IssueQuantity,
+                request.Reason,
+                request.Note,
+                request.ImageUrl).ConfigureAwait(false);
+
+            return new OutboundIssueDto(
+                dto.IssueId,
+                dto.OutboundOrderId,
+                dto.OutboundOrderItemId,
+                dto.ProductId,
+                dto.IssueQuantity,
+                dto.Reason,
+                dto.Note,
+                dto.ImageUrl,
+                dto.ReportedBy,
+                dto.ReportedAt,
+                dto.UpdatedBy,
+                dto.UpdatedAt);
+        }
+
+        public async Task<OutboundIssueDto> UpdateOutboundIssueAsync(int outboundOrderId, int issueId, UpdateOutboundIssueRequest request)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            if (issueId <= 0) throw new ArgumentException("Invalid issueId.", nameof(issueId));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (request.UpdatedBy <= 0) throw new ArgumentException("Invalid updatedBy.", nameof(request.UpdatedBy));
+
+            var dto = await _repo.UpdateOutboundIssueAsync(
+                outboundOrderId,
+                issueId,
+                request.UpdatedBy,
+                request.OutboundOrderItemId,
+                request.IssueQuantity,
+                request.Reason,
+                request.Note,
+                request.ImageUrl).ConfigureAwait(false);
+
+            return new OutboundIssueDto(
+                dto.IssueId,
+                dto.OutboundOrderId,
+                dto.OutboundOrderItemId,
+                dto.ProductId,
+                dto.IssueQuantity,
+                dto.Reason,
+                dto.Note,
+                dto.ImageUrl,
+                dto.ReportedBy,
+                dto.ReportedAt,
+                dto.UpdatedBy,
+                dto.UpdatedAt);
+        }
+
+        public async Task<List<OutboundIssueDto>> GetOutboundIssuesByTicketAsync(int outboundOrderId)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            var items = await _repo.GetOutboundIssuesByTicketAsync(outboundOrderId).ConfigureAwait(false);
+            return items.Select(dto => new OutboundIssueDto(
+                dto.IssueId,
+                dto.OutboundOrderId,
+                dto.OutboundOrderItemId,
+                dto.ProductId,
+                dto.IssueQuantity,
+                dto.Reason,
+                dto.Note,
+                dto.ImageUrl,
+                dto.ReportedBy,
+                dto.ReportedAt,
+                dto.UpdatedBy,
+                dto.UpdatedAt)).ToList();
+        }
     }
 }

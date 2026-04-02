@@ -58,6 +58,24 @@ namespace Storix_BE.Repository.Interfaces
 
         Task<IReadOnlyList<OutboundOrderItemSelectedLocationDto>> GetOutboundOrderItemSelectedLocationsAsync(int outboundOrderId);
 
+        public sealed record OutboundIssueDto(
+            int IssueId,
+            int OutboundOrderId,
+            int OutboundOrderItemId,
+            int ProductId,
+            int IssueQuantity,
+            string Reason,
+            string? Note,
+            string? ImageUrl,
+            int ReportedBy,
+            DateTime? ReportedAt,
+            int? UpdatedBy,
+            DateTime? UpdatedAt);
+
+        Task<OutboundIssueDto> CreateOutboundIssueAsync(int outboundOrderId, int reportedBy, int outboundOrderItemId, int issueQuantity, string reason, string? note, string? imageUrl);
+        Task<OutboundIssueDto> UpdateOutboundIssueAsync(int outboundOrderId, int issueId, int updatedBy, int? outboundOrderItemId, int? issueQuantity, string? reason, string? note, string? imageUrl);
+        Task<List<OutboundIssueDto>> GetOutboundIssuesByTicketAsync(int outboundOrderId);
+
         Task<OutboundOrder> UpdateOutboundOrderStatusAsync(int outboundOrderId, int performedBy, string status);
 
         Task<OutboundOrder> ConfirmOutboundOrderAsync(

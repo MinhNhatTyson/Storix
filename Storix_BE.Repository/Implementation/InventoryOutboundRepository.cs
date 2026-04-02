@@ -455,6 +455,13 @@ namespace Storix_BE.Repository.Implementation
             if (!IsStaffTransitionAllowed(current, normalized))
                 throw new InvalidOperationException($"Invalid status transition from '{current}' to '{normalized}'.");
 
+            if (string.Equals(normalized, "IssueReported", StringComparison.OrdinalIgnoreCase))
+            {
+                var existingIssues = await GetOutboundIssuesByTicketAsync(outboundOrderId).ConfigureAwait(false);
+                if (!existingIssues.Any())
+                    throw new InvalidOperationException("Cannot set status to IssueReported without at least one issue record.");
+            }
+
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var oldStatus = order.Status;
 
@@ -693,6 +700,251 @@ namespace Storix_BE.Repository.Implementation
             }
 
             return result;
+        }
+
+        public async Task<IInventoryOutboundRepository.OutboundIssueDto> CreateOutboundIssueAsync(int outboundOrderId, int reportedBy, int outboundOrderItemId, int issueQuantity, string reason, string? note, string? imageUrl)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            if (reportedBy <= 0) throw new ArgumentException("Invalid reportedBy.", nameof(reportedBy));
+            if (outboundOrderItemId <= 0) throw new ArgumentException("Invalid outboundOrderItemId.", nameof(outboundOrderItemId));
+            if (issueQuantity <= 0) throw new ArgumentException("IssueQuantity must be > 0.", nameof(issueQuantity));
+            if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Reason is required.", nameof(reason));
+
+            var order = await _context.OutboundOrders
+                .Include(o => o.OutboundOrderItems)
+                .FirstOrDefaultAsync(o => o.Id == outboundOrderId)
+                .ConfigureAwait(false);
+
+            if (order == null)
+                throw new InvalidOperationException($"OutboundOrder with id {outboundOrderId} not found.");
+
+            if (!order.StaffId.HasValue || order.StaffId.Value != reportedBy)
+                throw new InvalidOperationException("Only assigned staff can create outbound issues.");
+
+            await EnsureStaffAssignedToWarehouseAsync(order.WarehouseId ?? 0, reportedBy).ConfigureAwait(false);
+
+            var item = order.OutboundOrderItems.FirstOrDefault(i => i.Id == outboundOrderItemId);
+            if (item == null)
+                throw new InvalidOperationException($"OutboundOrderItem with id {outboundOrderItemId} not found in ticket {outboundOrderId}.");
+
+            if (!item.ProductId.HasValue || item.ProductId.Value <= 0)
+                throw new InvalidOperationException("OutboundOrderItem must have a valid ProductId.");
+
+            var maxQty = item.Quantity ?? 0;
+            if (maxQty <= 0)
+                throw new InvalidOperationException("OutboundOrderItem quantity is invalid.");
+
+            if (issueQuantity > maxQty)
+                throw new InvalidOperationException($"Issue quantity cannot exceed item quantity ({maxQty}).");
+
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            var issueId = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var action = $"OUTBOUND_ISSUE_CREATE:ISSUE_ID={issueId};ORDER={outboundOrderId};ITEM={outboundOrderItemId};PRODUCT={item.ProductId.Value};QTY={issueQuantity};REASON={ToBase64(reason.Trim())};NOTE={ToBase64(note)};IMAGE={ToBase64(imageUrl)};REPORTED_BY={reportedBy}";
+
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = reportedBy,
+                Entity = "OutboundOrderIssue",
+                EntityId = outboundOrderId,
+                Action = action,
+                Timestamp = now
+            });
+
+            await _context.SaveChangesAsync().ConfigureAwait(false);
+
+            return new IInventoryOutboundRepository.OutboundIssueDto(
+                ParseIssueId(issueId.ToString()),
+                outboundOrderId,
+                outboundOrderItemId,
+                item.ProductId.Value,
+                issueQuantity,
+                reason.Trim(),
+                string.IsNullOrWhiteSpace(note) ? null : note,
+                string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl,
+                reportedBy,
+                now,
+                null,
+                null);
+        }
+
+        public async Task<IInventoryOutboundRepository.OutboundIssueDto> UpdateOutboundIssueAsync(int outboundOrderId, int issueId, int updatedBy, int? outboundOrderItemId, int? issueQuantity, string? reason, string? note, string? imageUrl)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+            if (issueId <= 0) throw new ArgumentException("Invalid issueId.", nameof(issueId));
+            if (updatedBy <= 0) throw new ArgumentException("Invalid updatedBy.", nameof(updatedBy));
+
+            var issueKey = issueId.ToString();
+            var order = await _context.OutboundOrders
+                .Include(o => o.OutboundOrderItems)
+                .FirstOrDefaultAsync(o => o.Id == outboundOrderId)
+                .ConfigureAwait(false);
+
+            if (order == null)
+                throw new InvalidOperationException($"OutboundOrder with id {outboundOrderId} not found.");
+
+            if (!order.StaffId.HasValue || order.StaffId.Value != updatedBy)
+                throw new InvalidOperationException("Only assigned staff can update outbound issues.");
+
+            await EnsureStaffAssignedToWarehouseAsync(order.WarehouseId ?? 0, updatedBy).ConfigureAwait(false);
+
+            var existing = (await GetOutboundIssuesByTicketAsync(outboundOrderId).ConfigureAwait(false))
+                .FirstOrDefault(x => x.IssueId == issueId);
+
+            if (existing == null)
+                throw new InvalidOperationException($"Issue {issueId} not found in ticket {outboundOrderId}.");
+
+            var targetItemId = outboundOrderItemId ?? existing.OutboundOrderItemId;
+            var item = order.OutboundOrderItems.FirstOrDefault(i => i.Id == targetItemId);
+            if (item == null)
+                throw new InvalidOperationException($"OutboundOrderItem with id {targetItemId} not found in ticket {outboundOrderId}.");
+
+            if (!item.ProductId.HasValue || item.ProductId.Value <= 0)
+                throw new InvalidOperationException("OutboundOrderItem must have a valid ProductId.");
+
+            var targetQty = issueQuantity ?? existing.IssueQuantity;
+            if (targetQty <= 0)
+                throw new InvalidOperationException("IssueQuantity must be > 0.");
+
+            var maxQty = item.Quantity ?? 0;
+            if (targetQty > maxQty)
+                throw new InvalidOperationException($"Issue quantity cannot exceed item quantity ({maxQty}).");
+
+            var targetReason = string.IsNullOrWhiteSpace(reason) ? existing.Reason : reason.Trim();
+            var targetNote = note ?? existing.Note;
+            var targetImage = imageUrl ?? existing.ImageUrl;
+
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            var action = $"OUTBOUND_ISSUE_UPDATE:ISSUE_ID={issueKey};ORDER={outboundOrderId};ITEM={targetItemId};PRODUCT={item.ProductId.Value};QTY={targetQty};REASON={ToBase64(targetReason)};NOTE={ToBase64(targetNote)};IMAGE={ToBase64(targetImage)};UPDATED_BY={updatedBy}";
+
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = updatedBy,
+                Entity = "OutboundOrderIssue",
+                EntityId = outboundOrderId,
+                Action = action,
+                Timestamp = now
+            });
+
+            await _context.SaveChangesAsync().ConfigureAwait(false);
+
+            return new IInventoryOutboundRepository.OutboundIssueDto(
+                issueId,
+                outboundOrderId,
+                targetItemId,
+                item.ProductId.Value,
+                targetQty,
+                targetReason,
+                targetNote,
+                targetImage,
+                existing.ReportedBy,
+                existing.ReportedAt,
+                updatedBy,
+                now);
+        }
+
+        public async Task<List<IInventoryOutboundRepository.OutboundIssueDto>> GetOutboundIssuesByTicketAsync(int outboundOrderId)
+        {
+            if (outboundOrderId <= 0) throw new ArgumentException("Invalid outboundOrderId.", nameof(outboundOrderId));
+
+            var exists = await _context.OutboundOrders
+                .AsNoTracking()
+                .AnyAsync(o => o.Id == outboundOrderId)
+                .ConfigureAwait(false);
+
+            if (!exists)
+                throw new InvalidOperationException($"OutboundOrder with id {outboundOrderId} not found.");
+
+            var logs = await _context.ActivityLogs
+                .AsNoTracking()
+                .Where(l => l.Entity == "OutboundOrderIssue"
+                            && l.EntityId == outboundOrderId
+                            && l.Action != null
+                            && (l.Action.StartsWith("OUTBOUND_ISSUE_CREATE:") || l.Action.StartsWith("OUTBOUND_ISSUE_UPDATE:")))
+                .OrderBy(l => l.Timestamp)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var map = new Dictionary<int, IInventoryOutboundRepository.OutboundIssueDto>();
+
+            foreach (var log in logs)
+            {
+                var action = log.Action;
+                if (string.IsNullOrWhiteSpace(action)) continue;
+
+                var idx = action.IndexOf(':');
+                if (idx < 0 || idx >= action.Length - 1) continue;
+
+                var kind = action.Substring(0, idx);
+                var payload = action.Substring(idx + 1);
+                var parts = payload.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                var kvMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var part in parts)
+                {
+                    var kv = part.Split('=', 2, StringSplitOptions.TrimEntries);
+                    if (kv.Length == 2) kvMap[kv[0]] = kv[1];
+                }
+
+                if (!kvMap.TryGetValue("ISSUE_ID", out var issueIdRaw)) continue;
+                var parsedIssueId = ParseIssueId(issueIdRaw);
+                if (parsedIssueId <= 0) continue;
+
+                if (!kvMap.TryGetValue("ITEM", out var itemRaw) || !int.TryParse(itemRaw, out var itemId) || itemId <= 0) continue;
+                if (!kvMap.TryGetValue("PRODUCT", out var productRaw) || !int.TryParse(productRaw, out var productId) || productId <= 0) continue;
+                if (!kvMap.TryGetValue("QTY", out var qtyRaw) || !int.TryParse(qtyRaw, out var qty) || qty <= 0) continue;
+                if (!kvMap.TryGetValue("REASON", out var reasonEncoded)) continue;
+
+                var reasonDecoded = FromBase64(reasonEncoded);
+                if (string.IsNullOrWhiteSpace(reasonDecoded)) continue;
+
+                var noteDecoded = kvMap.TryGetValue("NOTE", out var noteEncoded) ? FromBase64(noteEncoded) : null;
+                var imageDecoded = kvMap.TryGetValue("IMAGE", out var imageEncoded) ? FromBase64(imageEncoded) : null;
+
+                if (string.Equals(kind, "OUTBOUND_ISSUE_CREATE", StringComparison.OrdinalIgnoreCase))
+                {
+                    var reportedBy = (kvMap.TryGetValue("REPORTED_BY", out var rbRaw) && int.TryParse(rbRaw, out var rb) && rb > 0)
+                        ? rb
+                        : (log.UserId ?? 0);
+
+                    if (reportedBy <= 0) continue;
+
+                    map[parsedIssueId] = new IInventoryOutboundRepository.OutboundIssueDto(
+                        parsedIssueId,
+                        outboundOrderId,
+                        itemId,
+                        productId,
+                        qty,
+                        reasonDecoded,
+                        noteDecoded,
+                        imageDecoded,
+                        reportedBy,
+                        log.Timestamp,
+                        null,
+                        null);
+                }
+                else if (string.Equals(kind, "OUTBOUND_ISSUE_UPDATE", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!map.TryGetValue(parsedIssueId, out var old)) continue;
+
+                    var updatedBy = (kvMap.TryGetValue("UPDATED_BY", out var ubRaw) && int.TryParse(ubRaw, out var ub) && ub > 0)
+                        ? ub
+                        : log.UserId;
+
+                    map[parsedIssueId] = old with
+                    {
+                        OutboundOrderItemId = itemId,
+                        ProductId = productId,
+                        IssueQuantity = qty,
+                        Reason = reasonDecoded,
+                        Note = noteDecoded,
+                        ImageUrl = imageDecoded,
+                        UpdatedBy = updatedBy,
+                        UpdatedAt = log.Timestamp
+                    };
+                }
+            }
+
+            return map.Values.OrderByDescending(x => x.UpdatedAt ?? x.ReportedAt).ToList();
         }
 
         public async Task<OutboundOrder> ConfirmOutboundOrderAsync(
@@ -1187,6 +1439,42 @@ namespace Storix_BE.Repository.Implementation
                 throw new InvalidOperationException($"Staff {staffId} is not assigned to warehouse {warehouseId}.");
         }
 
+        private static string ToBase64(string? value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+        }
+
+        private static string? FromBase64(string? encoded)
+        {
+            if (string.IsNullOrWhiteSpace(encoded)) return null;
+            try
+            {
+                var bytes = Convert.FromBase64String(encoded);
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static int ParseIssueId(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return 0;
+            if (int.TryParse(raw, out var parsed) && parsed > 0) return parsed;
+
+            unchecked
+            {
+                var hash = 23;
+                foreach (var ch in raw)
+                {
+                    hash = (hash * 31) + ch;
+                }
+                return Math.Abs(hash);
+            }
+        }
+
         private static bool IsStaffStatusAllowed(string status)
         {
             return status is "Picking" or "QualityCheck" or "IssueReported" or "Packing" or "LoadHandover";
@@ -1209,17 +1497,22 @@ namespace Storix_BE.Repository.Implementation
         {
             if (string.IsNullOrWhiteSpace(next)) return false;
 
-            if (string.IsNullOrWhiteSpace(current) || current == "Created")
-                return next == "Picking";
-
-            return current switch
+            var allowedStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "Picking" => next == "QualityCheck",
-                "QualityCheck" => next is "IssueReported" or "Packing",
-                "IssueReported" => next == "Packing",
-                "Packing" => next == "LoadHandover",
-                _ => false
+                "Picking",
+                "QualityCheck",
+                "IssueReported",
+                "Packing",
+                "LoadHandover"
             };
+
+            // Keep initial guard: from Created (or empty) staff must start with Picking.
+            if (string.IsNullOrWhiteSpace(current) || current == "Created")
+                return string.Equals(next, "Picking", StringComparison.OrdinalIgnoreCase);
+
+            // Allow both forward and backward transitions among staff workflow statuses.
+            // Example: QualityCheck -> Picking is valid.
+            return allowedStatuses.Contains(current) && allowedStatuses.Contains(next);
         }
 
         private async Task EnsureStockAvailabilityAsync(int warehouseId, IEnumerable<OutboundOrderItem> items)
