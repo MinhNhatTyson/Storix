@@ -18,11 +18,16 @@ namespace Storix_BE.API.Controllers
     {
         private readonly IWarehouseAssignmentService _assignmentService;
         private readonly IUserService _userService;
+        private readonly IInventoryOutboundService _inventoryOutboundService;
 
-        public WarehouseAssignmentsController(IWarehouseAssignmentService assignmentService, IUserService userService)
+        public WarehouseAssignmentsController(
+            IWarehouseAssignmentService assignmentService,
+            IUserService userService,
+            IInventoryOutboundService inventoryOutboundService)
         {
             _assignmentService = assignmentService;
             _userService = userService;
+            _inventoryOutboundService = inventoryOutboundService;
         }
 
         private int? GetRoleIdFromToken()
@@ -72,6 +77,49 @@ namespace Storix_BE.API.Controllers
                 return Forbid();
             }
             catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("/api/company-warehouses/{companyId:int}/warehouses/{warehouseId:int}/inventory")]
+        [Authorize(Roles = "2,3,4")]
+        public async Task<IActionResult> GetWarehouseInventory(int companyId, int warehouseId)
+        {
+            if (companyId <= 0)
+                return BadRequest(new { message = "CompanyId is required." });
+            if (warehouseId <= 0)
+                return BadRequest(new { message = "WarehouseId is required." });
+
+            var roleId = GetRoleIdFromToken();
+            var email = GetEmailFromToken();
+            if (roleId == null || string.IsNullOrEmpty(email))
+                return Unauthorized();
+
+            try
+            {
+                var caller = await _userService.GetByEmailAsync(email);
+                if (caller?.CompanyId == null)
+                    return Unauthorized();
+                if (caller.CompanyId.Value != companyId)
+                    return Forbid();
+
+                var items = await _inventoryOutboundService.GetWarehouseInventoryAsync(companyId, warehouseId);
+                return Ok(items);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
