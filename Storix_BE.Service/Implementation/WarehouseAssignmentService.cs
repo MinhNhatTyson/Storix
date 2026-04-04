@@ -14,12 +14,18 @@ namespace Storix_BE.Service.Implementation
         private readonly IUserRepository _userRepository;
         private readonly IWarehouseAssignmentRepository _assignmentRepository;
         private readonly IConfiguration _configuration;
+        private readonly IActivityLogRepository _activityLogRepo;
 
-        public WarehouseAssignmentService(IUserRepository userRepository, IWarehouseAssignmentRepository assignmentRepository, IConfiguration configuration)
+        public WarehouseAssignmentService(
+            IUserRepository userRepository,
+            IWarehouseAssignmentRepository assignmentRepository,
+            IConfiguration configuration,
+            IActivityLogRepository activityLogRepo)
         {
             _userRepository = userRepository;
             _assignmentRepository = assignmentRepository;
             _configuration = configuration;
+            _activityLogRepo = activityLogRepo;
         }
 
         private static void EnsureCompanyAdministratorAsync(int callerRoleId)
@@ -222,6 +228,15 @@ namespace Storix_BE.Service.Implementation
 
                 await _assignmentRepository.AddAssignmentAsync(assignment);
             }
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = request.AssignedManagerUserId,
+                Action = "Create Warehouse",
+                Entity = "Warehouse",
+                EntityId = created.Id,
+                Timestamp = now
+            }).ConfigureAwait(false);
 
             return created;
         }
@@ -477,6 +492,15 @@ namespace Storix_BE.Service.Implementation
 
             // Return warehouse with refreshed structure
             var result = await _assignmentRepository.GetWarehouseWithStructureAsync(warehouseId) ?? throw new System.Exception("Failed to load updated warehouse.");
+            var time = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = null,
+                Action = "Update Warehouse Structure",
+                Entity = "Warehouse",
+                EntityId = warehouseId,
+                Timestamp = time
+            }).ConfigureAwait(false);
             return result;
         }
         public async Task<Warehouse> GetWarehouseStructureAsync(int companyId, int warehouseId)
