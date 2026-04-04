@@ -170,6 +170,7 @@ namespace Storix_BE.API.Controllers
         /// List Manager/Staff assigned to a specific warehouse (within your company).
         /// </summary>
         [HttpGet("warehouse/{warehouseId:int}")]
+        [Authorize(Roles = "2,3,4")]
         public async Task<IActionResult> GetAssignmentsByWarehouse(int companyId, int warehouseId)
         {
             if (companyId <= 0)
@@ -493,13 +494,14 @@ namespace Storix_BE.API.Controllers
                                     bins = l.ShelfLevelBins != null
                                         ? l.ShelfLevelBins.Select(b => (object)new
                                         {
-                                            id = b.IdCode,
+                                            i id = b.IdCode,
                                             code = b.Code,
                                             status = b.Status,
                                             percentage = b.Percentage,
                                             width = b.Width,
                                             height = b.Height,
                                             length = b.Length,
+                                            productId = b.Inventory?.ProductId
                                         }).ToList()
                                         : new List<object>()
                                 }).ToList()
