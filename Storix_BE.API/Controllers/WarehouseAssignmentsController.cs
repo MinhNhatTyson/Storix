@@ -493,13 +493,14 @@ namespace Storix_BE.API.Controllers
                                     bins = l.ShelfLevelBins != null
                                         ? l.ShelfLevelBins.Select(b => (object)new
                                         {
-                                            id = b.IdCode,
+                                            i id = b.IdCode,
                                             code = b.Code,
                                             status = b.Status,
                                             percentage = b.Percentage,
                                             width = b.Width,
                                             height = b.Height,
                                             length = b.Length,
+                                            productId = b.Inventory?.ProductId
                                         }).ToList()
                                         : new List<object>()
                                 }).ToList()
