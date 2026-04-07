@@ -223,7 +223,7 @@ namespace Storix_BE.Service.Implementation
             return await GetByIdAsync(companyId, order.Id);
         }
 
-        public async Task<TransferOrderDetailDto> ApproveAsync(int companyId, int actorUserId, int transferOrderId)
+        public async Task<TransferOrderDetailDto> ApproveAsync(int companyId, int actorUserId, int transferOrderId, int? receiverStaffId = null)
         {
             var order = await GetOrderInCompanyAsync(companyId, transferOrderId);
             await EnsureManagerAsync(actorUserId, companyId);
@@ -246,6 +246,9 @@ namespace Storix_BE.Service.Implementation
                 if (qty <= 0 || inv == null || available < qty)
                     throw new InvalidOperationException($"OUT_OF_STOCK ProductId={line.ProductId}, available={available}, required={qty}");
             }
+
+            if (receiverStaffId.HasValue && receiverStaffId.Value > 0)
+                await EnsureStaffAssignedToWarehouseAsync(receiverStaffId.Value, order.DestinationWarehouseId ?? 0, companyId);
 
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             await using var tx = await _context.Database.BeginTransactionAsync();
@@ -300,7 +303,7 @@ namespace Storix_BE.Service.Implementation
                 {
                     WarehouseId = order.DestinationWarehouseId,
                     CreatedBy = actorUserId,
-                    StaffId = null,
+                    StaffId = receiverStaffId,
                     Status = "Created",
                     ReferenceCode = $"AUTO_FROM_TRANSFER#{order.Id}",
                     CreatedAt = now

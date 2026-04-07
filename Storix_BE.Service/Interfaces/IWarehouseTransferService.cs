@@ -15,7 +15,7 @@ namespace Storix_BE.Service.Interfaces
         Task<TransferOrderDetailDto> AssignCarrierAsync(int companyId, int actorUserId, int transferOrderId, int carrierUserId);
 
         Task<TransferOrderDetailDto> SubmitAsync(int companyId, int actorUserId, int transferOrderId);
-        Task<TransferOrderDetailDto> ApproveAsync(int companyId, int actorUserId, int transferOrderId);
+        Task<TransferOrderDetailDto> ApproveAsync(int companyId, int actorUserId, int transferOrderId, int? receiverStaffId = null);
         Task<TransferOrderDetailDto> RejectAsync(int companyId, int actorUserId, int transferOrderId, string reason);
 
         Task<TransferOrderDetailDto> StartPickingAsync(int companyId, int actorUserId, int transferOrderId);
