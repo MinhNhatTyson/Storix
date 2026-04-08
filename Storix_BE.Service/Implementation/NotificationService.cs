@@ -85,7 +85,61 @@ namespace Storix_BE.Service.Implementation
                 }
             }
         }
+        public async Task SendNotificationToUserAsync(int userId, string title, string message, string type, string category, string referenceType, int? referenceId, int? createdByUserId)
+        {
+            if (userId <= 0) throw new ArgumentException("Invalid userId.", nameof(userId));
+            if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("Title is required.", nameof(title));
 
+            var user = await _userRepo.GetUserByIdWithRoleAsync(userId).ConfigureAwait(false);
+            if (user == null) throw new InvalidOperationException($"User {userId} not found.");
+
+            var notification = new Notification
+            {
+                CompanyId = user.CompanyId,
+                Title = title,
+                Message = message,
+                Type = type,
+                Category = category,
+                ReferenceType = referenceType,
+                ReferenceId = referenceId,
+                CreatedBy = createdByUserId
+            };
+
+            notification = await _notificationRepo.CreateAsync(notification).ConfigureAwait(false);
+
+            var userNotification = new UserNotification
+            {
+                NotificationId = notification.Id,
+                UserId = userId,
+                IsRead = false,
+                IsHidden = false,
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+            };
+
+            await _notificationRepo.CreateUserNotificationAsync(userNotification).ConfigureAwait(false);
+
+            var payload = new
+            {
+                UserNotificationId = userNotification.Id,
+                NotificationId = notification.Id,
+                notification.Title,
+                notification.Message,
+                notification.Type,
+                notification.Category,
+                notification.ReferenceType,
+                notification.ReferenceId,
+                CreatedAt = notification.CreatedAt
+            };
+
+            try
+            {
+                await _publisher.PublishToUserAsync(userId, payload).ConfigureAwait(false);
+            }
+            catch
+            {
+                Console.WriteLine($"Failed to publish notification to user {userId}. NotificationId: {notification.Id}");
+            }
+        }
         public Task<List<UserNotification>> GetUserNotificationsAsync(int userId, int skip = 0, int take = 50)
         {
             return _notificationRepo.GetUserNotificationsAsync(userId, skip, take);

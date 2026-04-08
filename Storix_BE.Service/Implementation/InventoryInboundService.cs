@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Storix_BE.Service.Implementation
 {
@@ -16,11 +17,16 @@ namespace Storix_BE.Service.Implementation
     {
         private readonly IInventoryInboundRepository _repo;
         private readonly INotificationService _notificationService;
+        private readonly IActivityLogRepository _activityLogRepo;
 
-        public InventoryInboundService(IInventoryInboundRepository repo, INotificationService notificationService)
+        public InventoryInboundService(
+            IInventoryInboundRepository repo,
+            INotificationService notificationService,
+            IActivityLogRepository activityLogRepo)
         {
             _repo = repo;
             _notificationService = notificationService;
+            _activityLogRepo = activityLogRepo;
         }
 
         public async Task<InboundRequest> CreateInboundRequestAsync(CreateInboundRequestRequest request)
@@ -115,6 +121,16 @@ namespace Storix_BE.Service.Implementation
             }).ToList();
 
             var createdRequest = await _repo.CreateInventoryInboundTicketRequest(inboundRequest, productPrices);
+            // add activity log entry
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = request.RequestedBy,
+                Action = "Create Inbound Request",
+                Entity = "InboundRequest",
+                EntityId = inboundRequest.Id,
+                Timestamp = now
+            }).ConfigureAwait(false);
             return createdRequest;
         }
         public async Task<InboundRequest> ImportInboundRequestAsync(IFormFile file)
@@ -191,7 +207,16 @@ namespace Storix_BE.Service.Implementation
             if (string.IsNullOrWhiteSpace(status)) throw new ArgumentException("Status is required.", nameof(status));
 
             var inbound = await _repo.UpdateInventoryInboundTicketRequestStatus(ticketRequestId, approverId, status);
-
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            // log approval/change (status may be "Approved", "Rejected", etc.)
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = approverId,
+                Action = $"{status} Inbound Request",
+                Entity = "InboundRequest",
+                EntityId = inbound.Id,
+                Timestamp = now
+            }).ConfigureAwait(false);
             // Send notification to managers when approved
             if (string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase))
             {
@@ -242,7 +267,40 @@ namespace Storix_BE.Service.Implementation
             if (createdBy <= 0) throw new ArgumentException("Invalid createdBy.", nameof(createdBy));
             // staffId may be null (optional)
 
-            return await _repo.CreateInboundOrderFromRequestAsync(inboundRequestId, createdBy, staffId);
+            var ticket= await _repo.CreateInboundOrderFromRequestAsync(inboundRequestId, createdBy, staffId);
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = createdBy,
+                Action = "Create Inbound Order",
+                Entity = "InboundOrder",
+                EntityId = ticket.Id,
+                Timestamp = now
+            }).ConfigureAwait(false);
+            if (staffId.HasValue && staffId.Value > 0)
+            {
+                try
+                {
+                    var title = "New inbound ticket assigned";
+                    var message = $"Inbound ticket #{ticket.Id} has been created and assigned to you.";
+                    await _notificationService.SendNotificationToUserAsync(
+                        staffId.Value,
+                        title,
+                        message,
+                        type: "InboundOrder",
+                        category: "Inbound",
+                        referenceType: "InboundOrder",
+                        referenceId: ticket.Id,
+                        createdByUserId: createdBy
+                    ).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to send notification to staff {staffId}: {ex.Message}");
+                }
+            }
+
+            return ticket;
         }
 
         public async Task<InboundOrder> UpdateTicketItemsAsync(int inboundOrderId, IEnumerable<UpdateInboundOrderItemRequest> items)
@@ -271,7 +329,34 @@ namespace Storix_BE.Service.Implementation
                 )))
                 .ToList();
 
-            return await _repo.UpdateInboundOrderItemsAsync(inboundOrderId, domainItems, placements).ConfigureAwait(false);
+            var updated = await _repo.UpdateInboundOrderItemsAsync(inboundOrderId, domainItems, placements).ConfigureAwait(false);
+
+            // Notify managers when staff updated/finished inbound ticket (best-effort)
+            try
+            {
+                var companyId = updated.Warehouse?.CompanyId ?? updated.InboundRequest?.RequestedByNavigation?.CompanyId;
+                if (companyId.HasValue && companyId.Value > 0)
+                {
+                    var title = "Inbound ticket updated by staff";
+                    var message = $"Inbound ticket #{updated.Id} has new updates from staff.";
+                    await _notificationService.SendNotificationToManagersAsync(
+                        companyId.Value,
+                        title,
+                        message,
+                        type: "InboundOrder",
+                        category: "Inbound",
+                        referenceType: "InboundOrder",
+                        referenceId: updated.Id,
+                        createdByUserId: updated.StaffId
+                    ).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to notify managers for inbound order {inboundOrderId}: {ex.Message}");
+            }
+
+            return updated;
         }
         private static SupplierDto? MapSupplier(Supplier? s)
         {

@@ -12,10 +12,16 @@ namespace Storix_BE.Service.Implementation
     public class InventoryCountService : IInventoryCountService
     {
         private readonly IInventoryCountRepository _repo;
+        private readonly IActivityLogRepository _activityLogRepo;
+        private readonly INotificationService _notificationService;
+        private readonly IUserRepository _userRepository;
 
-        public InventoryCountService(IInventoryCountRepository repo)
+        public InventoryCountService(IInventoryCountRepository repo, IActivityLogRepository activityLogRepo, INotificationService notificationService, IUserRepository userRepository)
         {
             _repo = repo;
+            _activityLogRepo = activityLogRepo;
+            _notificationService = notificationService;
+            _userRepository = userRepository;
         }
 
         public async Task<InventoryCountsTicket> CreateStockCountTicketAsync(CreateStockCountTicketRequest request)
@@ -67,7 +73,40 @@ namespace Storix_BE.Service.Implementation
                 });
             }
 
-            return await _repo.CreateStockCountTicketAsync(ticket).ConfigureAwait(false);
+            var created = await _repo.CreateStockCountTicketAsync(ticket).ConfigureAwait(false);
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = request.PerformedBy,
+                Action = "Create StockCountTicket",
+                Entity = "StockCountTicket",
+                EntityId = created.Id,
+                Timestamp = now
+            }).ConfigureAwait(false);
+            if (created.AssignedTo.HasValue && created.AssignedTo.Value > 0)
+            {
+                try
+                {
+                    var title = "New stock count ticket assigned";
+                    var message = $"Stock count ticket #{created.Id} has been created and assigned to you.";
+                    await _notificationService.SendNotificationToUserAsync(
+                        created.AssignedTo.Value,
+                        title,
+                        message,
+                        type: "StockCountTicket",
+                        category: "InventoryCount",
+                        referenceType: "StockCountTicket",
+                        referenceId: created.Id,
+                        createdByUserId: request.PerformedBy
+                    ).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to notify assigned staff {created.AssignedTo}: {ex.Message}");
+                }
+            }
+
+            return created;
         }
 
         public async Task<InventoryCountsTicket> UpdateStockCountTicketStatusAsync(int ticketId, int approverId, string status)
@@ -77,6 +116,42 @@ namespace Storix_BE.Service.Implementation
             if (string.IsNullOrWhiteSpace(status)) throw new ArgumentException("Status is required.", nameof(status));
 
             var updated = await _repo.UpdateStockCountTicketStatusAsync(ticketId, approverId, status).ConfigureAwait(false);
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            await _activityLogRepo.AddAsync(new ActivityLog
+            {
+                UserId = approverId,
+                Action = $"{status} StockCountTicket",
+                Entity = "StockCountTicket",
+                EntityId = updated.Id,
+                Timestamp = now
+            }).ConfigureAwait(false);
+            if (string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var companyId = updated.PerformedByNavigation?.CompanyId ?? _userRepository.GetUserByIdWithRoleAsync(approverId).Result?.CompanyId;
+                    if (companyId.HasValue && companyId.Value > 0)
+                    {
+                        var title = $"Stock count ticket {status.ToLowerInvariant()}";
+                        var message = $"Stock count ticket #{updated.Id} has been {status.ToLowerInvariant()}.";
+                        await _notificationService.SendNotificationToManagersAsync(
+                            companyId.Value,
+                            title,
+                            message,
+                            type: "StockCountTicket",
+                            category: "InventoryCount",
+                            referenceType: "StockCountTicket",
+                            referenceId: updated.Id,
+                            createdByUserId: approverId
+                        ).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to notify managers for stock count ticket {updated.Id}: {ex.Message}");
+                }
+            }
+
             return updated;
         }
 
@@ -95,7 +170,40 @@ namespace Storix_BE.Service.Implementation
                 LocationId = i.LocationId,
             }).ToList();
 
-            return await _repo.UpdateStockCountItemsAsync(ticketId, domainItems, request.PerformedBy).ConfigureAwait(false);
+            var updated = await _repo.UpdateStockCountItemsAsync(ticketId, domainItems, request.PerformedBy).ConfigureAwait(false);
+
+            // After staff finishes updating items notify managers
+            try
+            {
+                var companyId = updated.Warehouse?.CompanyId ?? updated.PerformedByNavigation?.CompanyId;
+                if (!companyId.HasValue)
+                {
+                    var usr = await _userRepository.GetUserByIdWithRoleAsync(request.PerformedBy).ConfigureAwait(false);
+                    companyId = usr?.CompanyId;
+                }
+
+                if (companyId.HasValue && companyId.Value > 0)
+                {
+                    var title = "Stock count ticket updated by staff";
+                    var message = $"Stock count ticket #{updated.Id} has been updated by staff.";
+                    await _notificationService.SendNotificationToManagersAsync(
+                        companyId.Value,
+                        title,
+                        message,
+                        type: "StockCountTicket",
+                        category: "InventoryCount",
+                        referenceType: "StockCountTicket",
+                        referenceId: updated.Id,
+                        createdByUserId: request.PerformedBy
+                    ).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to notify managers for stock count ticket {ticketId}: {ex.Message}");
+            }
+
+            return updated;
         }
 
         public Task<List<InventoryCountsTicket>> GetStockCountTicketsByCompanyAsync(int companyId)
