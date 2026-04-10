@@ -29,7 +29,6 @@ namespace Storix_BE.Repository.Implementation
 
         private async Task UpdateProductPopularityAsync()
         {
-            // Example using Raw SQL in Entity Framework
             var sql = @"UPDATE products
                     SET popularity_score = sub.new_score
                     FROM (
