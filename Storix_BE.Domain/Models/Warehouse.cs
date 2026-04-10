@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Storix_BE.Domain.Models;
@@ -8,6 +8,8 @@ public partial class Warehouse
     public int Id { get; set; }
 
     public int? CompanyId { get; set; }
+
+    public int? BranchId { get; set; }
 
     public string? Name { get; set; }
 
@@ -32,6 +34,8 @@ public partial class Warehouse
     public DateTime? UpdatedAt { get; set; }
 
     public virtual Company? Company { get; set; }
+
+    public virtual Branch? Branch { get; set; }
 
     public virtual ICollection<InboundOrder> InboundOrders { get; set; } = new List<InboundOrder>();
 
