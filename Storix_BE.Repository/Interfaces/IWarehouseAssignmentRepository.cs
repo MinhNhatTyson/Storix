@@ -20,6 +20,8 @@ namespace Storix_BE.Repository.Interfaces
         Task<Warehouse> CreateWarehouseAsync(Warehouse warehouse);
         Task<bool> UpdateWarehouseStructureAsync(int warehouseId, Warehouse warehouseStructure);
         Task<Warehouse?> GetWarehouseWithStructureAsync(int warehouseId);
-        Task<bool> DeleteWarehouseAsync(int warehouseId);
+        Task<bool> DeleteWarehouseAsync(int warehouseId);        
+        
+        
     }
 }

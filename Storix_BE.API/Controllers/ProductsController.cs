@@ -339,5 +339,43 @@ namespace Storix_BE.API.Controllers
                        return BadRequest(new { message = ex.Message });
                    }
            }
+        [HttpGet("inventory-locations/{userId:int}/{productId:int}/warehouse/{warehouseId:int}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetProductInventoryLocations(int userId, int productId, int warehouseId)
+        {
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+            if (productId <= 0) return BadRequest(new { message = "Invalid product id." });
+            if (warehouseId <= 0) return BadRequest(new { message = "Invalid warehouse id." });
+
+            int companyId;
+            try
+            {
+                companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+
+            try
+            {
+                var locations = await _service.GetProductInventoryLocationsAsync(companyId, warehouseId, productId);
+                return Ok(locations);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
     }
 }
