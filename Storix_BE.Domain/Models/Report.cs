@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Storix_BE.Domain.Models;
 
@@ -12,7 +12,13 @@ public partial class Report
 
     public string? ReportType { get; set; }
 
+    public int? BranchId { get; set; }
+
     public int? WarehouseId { get; set; }
+
+    public int? ProductId { get; set; }
+
+    public int? InventoryCountTicketId { get; set; }
 
     public DateTime? TimeFrom { get; set; }
 

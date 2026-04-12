@@ -38,6 +38,7 @@ namespace Storix_BE.API.Configuration
 
             // Background job tự động expire subscriptions mỗi giờ
             // services.AddHostedService<SubscriptionExpiryJob>(); // tạm tắt subscription
+            services.AddHostedService<Storix_BE.API.BackgroundJobs.ProductPopularityResetJob>();
 
             return services;
         }

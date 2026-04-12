@@ -20,6 +20,8 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<Company> Companies { get; set; }
 
+    public virtual DbSet<Branch> Branches { get; set; }
+
     public virtual DbSet<CompanyPayment> CompanyPayments { get; set; }
 
     public virtual DbSet<InboundOrder> InboundOrders { get; set; }
@@ -239,6 +241,35 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
+        });
+
+        modelBuilder.Entity<Branch>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("branches_pkey");
+
+            entity.ToTable("branches");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.Name)
+                .HasColumnType("character varying")
+                .HasColumnName("name");
+            entity.Property(e => e.Address)
+                .HasColumnType("character varying")
+                .HasColumnName("address");
+            entity.Property(e => e.Status)
+                .HasColumnType("character varying")
+                .HasColumnName("status");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Company).WithMany(p => p.Branches)
+                .HasForeignKey(d => d.CompanyId)
+                .HasConstraintName("fk_branches_company_id");
         });
 
         modelBuilder.Entity<CompanyPayment>(entity =>
@@ -463,6 +494,8 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Quantity).HasColumnName("quantity");
             entity.Property(e => e.ReservedQuantity).HasColumnName("reserved_quantity");
+            entity.Property(e => e.MinStock).HasColumnName("min_stock");
+            entity.Property(e => e.MaxStock).HasColumnName("max_stock");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
 
             entity.HasOne(d => d.Product).WithMany(p => p.Inventories)
@@ -1031,9 +1064,8 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.PlannedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("planned_at");
-            entity.Property(e => e.ScopeId).HasColumnName("scope_id");
             entity.Property(e => e.ScopeType)
-                .HasMaxLength(50)
+                .HasColumnType("character varying")
                 .HasColumnName("scope_type");
             entity.Property(e => e.Status)
                 .HasColumnType("character varying")
@@ -1051,9 +1083,21 @@ public partial class StorixDbContext : DbContext
                 .HasForeignKey(d => d.WarehouseId)
                 .HasConstraintName("fk_stock_counts_tickets_warehouse_id");
 
-            entity.HasOne(d => d.Scope).WithMany(p => p.StockCountsTickets)
-                .HasForeignKey(d => d.ScopeId)
-                .HasConstraintName("fk_stock_counts_tickets_scope_id");
+            entity.HasMany(d => d.StorageZones).WithMany(p => p.InventoryCountsTickets)
+                .UsingEntity<Dictionary<string, object>>(
+                    "InventoryCountsTicketStorageZone",
+                    r => r.HasOne<StorageZone>().WithMany()
+                        .HasForeignKey("StorageZoneId")
+                        .HasConstraintName("FK_StorageZone"),
+                    l => l.HasOne<InventoryCountsTicket>().WithMany()
+                        .HasForeignKey("InventoryCountsTicketId")
+                        .HasConstraintName("FK_Ticket"),
+                    j =>
+                    {
+                        j.HasKey("InventoryCountsTicketId", "StorageZoneId");
+                        j.ToTable("InventoryCountsTicketStorageZone");
+                        j.HasIndex(new[] { "StorageZoneId" }, "IX_TicketStorageZone_StorageZoneId");
+                    });
         });
 
         modelBuilder.Entity<StorageForecast>(entity =>
@@ -1288,6 +1332,7 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("address");
             entity.Property(e => e.CompanyId).HasColumnName("company_id");
+            entity.Property(e => e.BranchId).HasColumnName("branch_id");
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
@@ -1312,6 +1357,10 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.Company).WithMany(p => p.Warehouses)
                 .HasForeignKey(d => d.CompanyId)
                 .HasConstraintName("fk_warehouses_company_id");
+
+            entity.HasOne(d => d.Branch).WithMany(p => p.Warehouses)
+                .HasForeignKey(d => d.BranchId)
+                .HasConstraintName("fk_warehouses_branch_id");
         });
 
         modelBuilder.Entity<WarehouseAssignment>(entity =>
@@ -1351,7 +1400,10 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.ReportType)
                 .HasColumnType("character varying")
                 .HasColumnName("report_type");
+            entity.Property(e => e.BranchId).HasColumnName("branch_id");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+            entity.Property(e => e.ProductId).HasColumnName("product_id");
+            entity.Property(e => e.InventoryCountTicketId).HasColumnName("inventory_count_ticket_id");
             entity.Property(e => e.TimeFrom)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("time_from");

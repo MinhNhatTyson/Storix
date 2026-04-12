@@ -388,7 +388,8 @@ namespace Storix_BE.Service.Implementation
                 item.Price,
                 item.Discount,
                 item.ExpectedQuantity,
-                p?.Description);
+                p?.Description,
+                p?.Image);
         }
 
         private static InboundRequestDto MapInboundRequestToDto(InboundRequest r)
