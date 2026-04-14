@@ -15,7 +15,6 @@ namespace Storix_BE.Repository.Interfaces
         Task<List<Report>> ListReportsAsync(
             int companyId,
             string? reportType,
-            int? branchId,
             int? warehouseId,
             DateTime? from,
             DateTime? to,
@@ -30,7 +29,6 @@ namespace Storix_BE.Repository.Interfaces
         Task<InventoryLedgerReportData> GetInventoryLedgerAsync(int companyId, int? branchId, int? warehouseId, int? productId, DateTime from, DateTime to);
         Task<InventoryInOutBalanceReportData> GetInventoryInOutBalanceAsync(int companyId, int? branchId, int? warehouseId, DateTime from, DateTime to);
         Task<StocktakeVarianceReportData> GetStocktakeVarianceAsync(int companyId, int? branchId, int? warehouseId, int? inventoryCountTicketId, DateTime from, DateTime to);
-        Task<(int lowStockCount, int overStockCount)> GetInventoryThresholdCountersAsync(int companyId, int? branchId, int? warehouseId);
     }
 
     // ── OutboundKpiBasic ──────────────────────────────────────────────────────

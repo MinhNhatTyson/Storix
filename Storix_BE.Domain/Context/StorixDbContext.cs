@@ -20,8 +20,6 @@ public partial class StorixDbContext : DbContext
 
     public virtual DbSet<Company> Companies { get; set; }
 
-    public virtual DbSet<Branch> Branches { get; set; }
-
     public virtual DbSet<CompanyPayment> CompanyPayments { get; set; }
 
     public virtual DbSet<InboundOrder> InboundOrders { get; set; }
@@ -494,8 +492,6 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.Quantity).HasColumnName("quantity");
             entity.Property(e => e.ReservedQuantity).HasColumnName("reserved_quantity");
-            entity.Property(e => e.MinStock).HasColumnName("min_stock");
-            entity.Property(e => e.MaxStock).HasColumnName("max_stock");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
 
             entity.HasOne(d => d.Product).WithMany(p => p.Inventories)
@@ -1332,7 +1328,6 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("address");
             entity.Property(e => e.CompanyId).HasColumnName("company_id");
-            entity.Property(e => e.BranchId).HasColumnName("branch_id");
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
@@ -1358,9 +1353,6 @@ public partial class StorixDbContext : DbContext
                 .HasForeignKey(d => d.CompanyId)
                 .HasConstraintName("fk_warehouses_company_id");
 
-            entity.HasOne(d => d.Branch).WithMany(p => p.Warehouses)
-                .HasForeignKey(d => d.BranchId)
-                .HasConstraintName("fk_warehouses_branch_id");
         });
 
         modelBuilder.Entity<WarehouseAssignment>(entity =>
@@ -1400,10 +1392,7 @@ public partial class StorixDbContext : DbContext
             entity.Property(e => e.ReportType)
                 .HasColumnType("character varying")
                 .HasColumnName("report_type");
-            entity.Property(e => e.BranchId).HasColumnName("branch_id");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
-            entity.Property(e => e.ProductId).HasColumnName("product_id");
-            entity.Property(e => e.InventoryCountTicketId).HasColumnName("inventory_count_ticket_id");
             entity.Property(e => e.TimeFrom)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("time_from");

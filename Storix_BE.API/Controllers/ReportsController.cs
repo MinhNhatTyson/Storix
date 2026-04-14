@@ -32,12 +32,11 @@ namespace Storix_BE.API.Controllers
             {
                 var payload = new CreateReportRequest(
                     request.ReportType,
-                    request.BranchId,
                     request.WarehouseId,
                     request.ProductId,
+                    request.InventoryCountTicketId,
                     request.TimeFrom,
-                    request.TimeTo,
-                    request.InventoryCountTicketId);
+                    request.TimeTo);
                 var result = await _reportingService.CreateReportAsync(effectiveCompanyId, caller!.Id, payload);
                 return Ok(result);
             }
@@ -81,7 +80,6 @@ namespace Storix_BE.API.Controllers
         public async Task<IActionResult> ListReports(
             [FromQuery] int? companyId = null,
             [FromQuery] string? type = null,
-            [FromQuery] int? branchId = null,
             [FromQuery] int? warehouseId = null,
             [FromQuery] DateTime? from = null,
             [FromQuery] DateTime? to = null,
@@ -93,7 +91,7 @@ namespace Storix_BE.API.Controllers
 
             try
             {
-                var items = await _reportingService.ListReportsAsync(effectiveCompanyId, type, branchId, warehouseId, from, to, skip, take);
+                var items = await _reportingService.ListReportsAsync(effectiveCompanyId, type, warehouseId, from, to, skip, take);
                 return Ok(items);
             }
             catch (ArgumentException ex)
@@ -131,29 +129,6 @@ namespace Storix_BE.API.Controllers
             }
         }
 
-        [HttpGet("inventory-threshold-counters")]
-        public async Task<IActionResult> GetInventoryThresholdCounters(
-            [FromQuery] int? companyId = null,
-            [FromQuery] int? branchId = null,
-            [FromQuery] int? warehouseId = null)
-        {
-            var (error, effectiveCompanyId, _) = await ResolveCallerAsync(companyId);
-            if (error != null) return error;
-
-            try
-            {
-                var counters = await _reportingService.GetInventoryThresholdCountersAsync(effectiveCompanyId, branchId, warehouseId);
-                return Ok(counters);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
-        }
 
         /// <summary>
         /// Resolves the authenticated caller and effective companyId for Company Admin scope.

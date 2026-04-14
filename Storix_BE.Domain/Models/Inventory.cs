@@ -9,9 +9,6 @@ public partial class Inventory
 
     public int? WarehouseId { get; set; }
 
-    public int? MinStock { get; set; }
-
-    public int? MaxStock { get; set; }
 
     public int? ProductId { get; set; }
 
