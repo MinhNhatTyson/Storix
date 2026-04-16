@@ -166,7 +166,12 @@ namespace Storix_BE.Service.Implementation
         {
             var deleted = await _notificationRepo.DeleteUserNotificationAsync(userNotificationId, userId).ConfigureAwait(false);
             if (!deleted) return false;
+<<<<<<< HEAD
             
+=======
+
+            // Notify client(s) that the notification was deleted so UI can update in real time
+>>>>>>> 5d823cdee17ad25c56db80d13df5832763233975
             try
             {
                 await _publisher.PublishToUserAsync(userId, new { Action = "Deleted", UserNotificationId = userNotificationId }).ConfigureAwait(false);

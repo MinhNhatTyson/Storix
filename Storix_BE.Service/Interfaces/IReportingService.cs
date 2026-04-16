@@ -14,14 +14,11 @@ namespace Storix_BE.Service.Interfaces
         Task<List<ReportRequestListItemDto>> ListReportsAsync(
             int companyId,
             string? reportType,
-            int? branchId,
             int? warehouseId,
             DateTime? from,
             DateTime? to,
             int skip,
             int take);
-
-        Task<InventoryThresholdCountersDto> GetInventoryThresholdCountersAsync(int companyId, int? branchId, int? warehouseId);
     }
 
     public static class ReportTypes
@@ -55,17 +52,15 @@ namespace Storix_BE.Service.Interfaces
 
     public sealed record CreateReportRequest(
         string ReportType,
-        int? BranchId,
         int? WarehouseId,
         int? ProductId,
+        int? InventoryCountTicketId,
         DateTime TimeFrom,
-        DateTime TimeTo,
-        int? InventoryCountTicketId);
+        DateTime TimeTo);
 
     public sealed record ReportRequestListItemDto(
         int Id,
         string? ReportType,
-        int? BranchId,
         int? WarehouseId,
         string? Status,
         DateTime? TimeFrom,
@@ -85,15 +80,11 @@ namespace Storix_BE.Service.Interfaces
         string? ContentHash,
         DateTime? GeneratedAt);
 
-    public sealed record InventoryThresholdCountersDto(
-        int LowStockCount,
-        int OverStockCount);
 
     public sealed record ReportDetailDto(
         int Id,
         string? ReportType,
         int CompanyId,
-        int? BranchId,
         int? WarehouseId,
         string? Status,
         DateTime? TimeFrom,

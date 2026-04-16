@@ -45,10 +45,7 @@ namespace Storix_BE.Service.Implementation
                 CompanyId = companyId,
                 CreatedByUserId = createdByUserId,
                 ReportType = payload.ReportType,
-                BranchId = payload.BranchId,
                 WarehouseId = payload.WarehouseId,
-                ProductId = payload.ProductId,
-                InventoryCountTicketId = payload.InventoryCountTicketId,
                 TimeFrom = payload.TimeFrom,
                 TimeTo = payload.TimeTo,
                 Status = ReportStatus.Running,
@@ -56,10 +53,7 @@ namespace Storix_BE.Service.Implementation
                 ParametersJson = JsonSerializer.Serialize(new
                 {
                     reportType = payload.ReportType,
-                    branchId = payload.BranchId,
                     warehouseId = payload.WarehouseId,
-                    productId = payload.ProductId,
-                    inventoryCountTicketId = payload.InventoryCountTicketId,
                     timeFrom = payload.TimeFrom,
                     timeTo = payload.TimeTo
                 }, paramsOptions)
@@ -118,7 +112,7 @@ namespace Storix_BE.Service.Implementation
                 }
                 else if (string.Equals(payload.ReportType, ReportTypes.InventorySnapshot, StringComparison.Ordinal))
                 {
-                    var snapshot = await _repo.GetInventorySnapshotAsync(companyId, payload.BranchId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
+                    var snapshot = await _repo.GetInventorySnapshotAsync(companyId, null, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
 
                     report.SummaryJson = JsonSerializer.Serialize(new
@@ -132,7 +126,7 @@ namespace Storix_BE.Service.Implementation
                 }
                 else if (string.Equals(payload.ReportType, ReportTypes.InventoryLedger, StringComparison.Ordinal))
                 {
-                    var ledger = await _repo.GetInventoryLedgerAsync(companyId, payload.BranchId, payload.WarehouseId, payload.ProductId, payload.TimeFrom, payload.TimeTo)
+                    var ledger = await _repo.GetInventoryLedgerAsync(companyId, null, payload.WarehouseId, payload.ProductId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
 
                     report.SummaryJson = JsonSerializer.Serialize(new
@@ -146,7 +140,7 @@ namespace Storix_BE.Service.Implementation
                 }
                 else if (string.Equals(payload.ReportType, ReportTypes.InventoryInOutBalance, StringComparison.Ordinal))
                 {
-                    var inOut = await _repo.GetInventoryInOutBalanceAsync(companyId, payload.BranchId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
+                    var inOut = await _repo.GetInventoryInOutBalanceAsync(companyId, null, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
 
                     report.SummaryJson = JsonSerializer.Serialize(new
@@ -162,7 +156,7 @@ namespace Storix_BE.Service.Implementation
                 }
                 else if (string.Equals(payload.ReportType, ReportTypes.StocktakeVariance, StringComparison.Ordinal))
                 {
-                    var stocktake = await _repo.GetStocktakeVarianceAsync(companyId, payload.BranchId, payload.WarehouseId, payload.InventoryCountTicketId, payload.TimeFrom, payload.TimeTo)
+                    var stocktake = await _repo.GetStocktakeVarianceAsync(companyId, null, payload.WarehouseId, payload.InventoryCountTicketId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
 
                     report.SummaryJson = JsonSerializer.Serialize(new
@@ -188,7 +182,6 @@ namespace Storix_BE.Service.Implementation
                     report.Id,
                     report.ReportType,
                     report.CompanyId,
-                    report.BranchId,
                     report.WarehouseId,
                     report.Status,
                     report.TimeFrom,
@@ -229,7 +222,6 @@ namespace Storix_BE.Service.Implementation
                 report.Id,
                 report.ReportType,
                 report.CompanyId,
-                report.BranchId,
                 report.WarehouseId,
                 report.Status,
                 report.TimeFrom,
@@ -927,7 +919,6 @@ namespace Storix_BE.Service.Implementation
         public async Task<List<ReportRequestListItemDto>> ListReportsAsync(
             int companyId,
             string? reportType,
-            int? branchId,
             int? warehouseId,
             DateTime? from,
             DateTime? to,
@@ -939,13 +930,12 @@ namespace Storix_BE.Service.Implementation
             if (take <= 0) take = 50;
             if (take > 200) take = 200;
 
-            var items = await _repo.ListReportsAsync(companyId, reportType, branchId, warehouseId, from, to, skip, take)
+            var items = await _repo.ListReportsAsync(companyId, reportType, warehouseId, from, to, skip, take)
                 .ConfigureAwait(false);
 
             return items.Select(r => new ReportRequestListItemDto(
                 r.Id,
                 r.ReportType,
-                r.BranchId,
                 r.WarehouseId,
                 r.Status,
                 r.TimeFrom,
@@ -955,15 +945,6 @@ namespace Storix_BE.Service.Implementation
                 r.ErrorMessage)).ToList();
         }
 
-        public async Task<InventoryThresholdCountersDto> GetInventoryThresholdCountersAsync(int companyId, int? branchId, int? warehouseId)
-        {
-            if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
-
-            var (lowStockCount, overStockCount) = await _repo.GetInventoryThresholdCountersAsync(companyId, branchId, warehouseId)
-                .ConfigureAwait(false);
-
-            return new InventoryThresholdCountersDto(lowStockCount, overStockCount);
-        }
     }
 }
 
