@@ -17,6 +17,27 @@ namespace Storix_BE.Repository.Implementation
         {
             _context = context;
         }
+        public async Task<List<InventoryCountsTicket>> GetStockCountTicketsByWarehouseAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+
+            var items = await _context.InventoryCountsTickets
+                .Include(t => t.InventoryCountItems)
+                    .ThenInclude(i => i.Product)
+                .Include(t => t.InventoryCountItems)
+                    .ThenInclude(i => i.Location)
+                .Include(t => t.Warehouse)
+                .Include(t => t.PerformedByNavigation)
+                .Where(t => t.Warehouse != null
+                            && t.Warehouse.CompanyId == companyId
+                            && t.WarehouseId == warehouseId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            return items;
+        }
 
         public async Task<InventoryCountsTicket> CreateStockCountTicketAsync(InventoryCountsTicket ticket)
         {
