@@ -23,6 +23,7 @@ public partial class InboundOrder
 
     public int? StaffId { get; set; }
 
+    public virtual ICollection<TransferOrder> TransferOrders { get; set; } = new List<TransferOrder>();
     public virtual User? CreatedByNavigation { get; set; }
 
     public virtual ICollection<InboundOrderItem> InboundOrderItems { get; set; } = new List<InboundOrderItem>();
