@@ -76,6 +76,28 @@ namespace Storix_BE.Service.Interfaces
 
     public sealed record TransferOrderTimelineDto(int Id, string? Action, DateTime? Timestamp, int? UserId, string? UserName);
 
+    public sealed record TransferOrderLinkedOutboundDto(
+        int Id,
+        int? WarehouseId,
+        string? Destination,
+        int? StaffId,
+        string? Status,
+        string? Note,
+        DateTime? CreatedAt,
+        IEnumerable<OutboundOrderItemDto> Items);
+
+    public sealed record TransferOrderLinkedInboundDto(
+        int Id,
+        int? WarehouseId,
+        int? StaffId,
+        string? Status,
+        string? ReferenceCode,
+        DateTime? CreatedAt,
+        IEnumerable<InboundOrderItemDto> Items);
+
+    public sealed record OutboundOrderItemDto(int Id, int? ProductId, string? ProductName, int? Quantity, string? PricingMethod);
+    public sealed record InboundOrderItemDto(int Id, int? ProductId, string? ProductName, int? ExpectedQuantity, int? ReceivedQuantity);
+
     public sealed record TransferOrderDetailDto(
         int Id,
         int? SourceWarehouseId,
@@ -86,6 +108,10 @@ namespace Storix_BE.Service.Interfaces
         string? CreatedByName,
         string? Status,
         DateTime? CreatedAt,
+        int? OutboundOrderId,
+        int? InboundOrderId,
+        TransferOrderLinkedOutboundDto? OutboundOrder,
+        TransferOrderLinkedInboundDto? InboundOrder,
         IEnumerable<TransferOrderItemDto> Items,
         IEnumerable<TransferOrderTimelineDto> Timeline);
 

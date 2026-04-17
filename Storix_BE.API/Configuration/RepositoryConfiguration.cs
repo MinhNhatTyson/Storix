@@ -14,6 +14,7 @@ namespace Storix_BE.API.Configuration
             services.AddScoped<IInventoryInboundRepository, InventoryInboundRepository>();
             services.AddScoped<ISupplierRepository, SupplierRepository>();
             services.AddScoped<IInventoryOutboundRepository, InventoryOutboundRepository>();
+            services.AddScoped<IWarehouseTransferRepository, WarehouseTransferRepository>();
             // services.AddScoped<IPaymentRepository, PaymentRepository>(); // tạm tắt payment
             services.AddScoped<IReportingRepository, ReportingRepository>();
             services.AddScoped<IInventoryCountRepository, InventoryCountRepository>();

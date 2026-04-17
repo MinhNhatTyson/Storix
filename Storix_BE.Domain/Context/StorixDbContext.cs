@@ -1236,6 +1236,8 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.DestinationWarehouseId).HasColumnName("destination_warehouse_id");
+            entity.Property(e => e.InboundOrderId).HasColumnName("inbound_order_id");
+            entity.Property(e => e.OutboundOrderId).HasColumnName("outbound_order_id");
             entity.Property(e => e.SourceWarehouseId).HasColumnName("source_warehouse_id");
             entity.Property(e => e.Status)
                 .HasColumnType("character varying")
@@ -1248,6 +1250,14 @@ public partial class StorixDbContext : DbContext
             entity.HasOne(d => d.DestinationWarehouse).WithMany(p => p.TransferOrderDestinationWarehouses)
                 .HasForeignKey(d => d.DestinationWarehouseId)
                 .HasConstraintName("fk_transfer_orders_destination_warehouse_id");
+
+            entity.HasOne(d => d.InboundOrder).WithMany()
+                .HasForeignKey(d => d.InboundOrderId)
+                .HasConstraintName("fk_transfer_orders_inbound_order_id");
+
+            entity.HasOne(d => d.OutboundOrder).WithMany()
+                .HasForeignKey(d => d.OutboundOrderId)
+                .HasConstraintName("fk_transfer_orders_outbound_order_id");
 
             entity.HasOne(d => d.SourceWarehouse).WithMany(p => p.TransferOrderSourceWarehouses)
                 .HasForeignKey(d => d.SourceWarehouseId)

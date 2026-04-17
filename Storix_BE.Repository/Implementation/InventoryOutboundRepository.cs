@@ -403,8 +403,7 @@ namespace Storix_BE.Repository.Implementation
                     throw new InvalidOperationException("Each item must have Quantity > 0.");
             }
 
-            // Persist selected bin allocations (staff picking) into ActivityLogs.
-            // This does not mutate inventory; actual stock deduction happens on manager confirm.
+            // Persist selected bin allocations and deduct stock when outbound update is finalized.
             var placementList = (placements ?? Enumerable.Empty<IInventoryOutboundRepository.InventoryPlacementDto>())
                 .Where(p => p.OutboundOrderItemId > 0 && p.ProductId > 0 && p.Quantity > 0 && !string.IsNullOrWhiteSpace(p.BinIdCode))
                 .ToList();
@@ -439,8 +438,66 @@ namespace Storix_BE.Repository.Implementation
                 }
 
                 var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                var productTotals = placementList
+                    .GroupBy(x => x.ProductId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
+                var inventoryProductIds = productTotals.Keys.ToList();
+                var inventories = await _context.Inventories
+                    .Where(i => i.WarehouseId == order.WarehouseId && i.ProductId.HasValue && inventoryProductIds.Contains(i.ProductId.Value))
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+
+                foreach (var item in order.OutboundOrderItems.Where(x => x.ProductId.HasValue))
+                {
+                    if (!productTotals.ContainsKey(item.ProductId!.Value))
+                        throw new InvalidOperationException($"Missing bin allocation for ProductId {item.ProductId.Value}.");
+                }
+
+                foreach (var (productId, totalQty) in productTotals)
+                {
+                    var inventory = inventories.FirstOrDefault(i => i.ProductId == productId);
+                    var available = inventory?.Quantity ?? 0;
+                    if (inventory == null || available < totalQty)
+                        throw new InvalidOperationException($"Insufficient stock for ProductId {productId}. Available: {available}, Requested: {totalQty}");
+
+                    inventory.Quantity = available - totalQty;
+                    inventory.LastUpdated = now;
+
+                    _context.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        WarehouseId = order.WarehouseId,
+                        ProductId = productId,
+                        TransactionType = "Outbound",
+                        QuantityChange = -totalQty,
+                        ReferenceId = order.Id,
+                        PerformedBy = order.StaffId.Value,
+                        CreatedAt = now
+                    });
+                }
+
                 foreach (var p in placementList)
                 {
+                    var bin = binByCode[p.BinIdCode];
+                    var shelf = bin.Level?.Shelf;
+                    if (shelf == null)
+                        throw new InvalidOperationException($"Shelf for bin {p.BinIdCode} not found.");
+
+                    var inventory = inventories.First(i => i.ProductId == p.ProductId);
+                    var invLoc = await _context.InventoryLocations
+                        .FirstOrDefaultAsync(x => x.InventoryId == inventory.Id && x.ShelfId == shelf.Id)
+                        .ConfigureAwait(false);
+
+                    if (invLoc == null)
+                        throw new InvalidOperationException($"No stock placement found at ShelfId {shelf.Id} for ProductId {p.ProductId}.");
+
+                    var currentQty = invLoc.Quantity ?? 0;
+                    if (currentQty < p.Quantity)
+                        throw new InvalidOperationException($"Insufficient shelf stock for ProductId {p.ProductId} at ShelfId {shelf.Id}. Available: {currentQty}, Requested: {p.Quantity}.");
+
+                    invLoc.Quantity = currentQty - p.Quantity;
+                    invLoc.UpdatedAt = now;
+
                     _context.ActivityLogs.Add(new ActivityLog
                     {
                         UserId = order.StaffId.Value,
@@ -526,7 +583,18 @@ namespace Storix_BE.Repository.Implementation
                     throw new InvalidOperationException($"ProductId {productId} must keep total quantity {requestedQty} as requested. Current: {actualQty}.");
             }
 
-            await _context.SaveChangesAsync().ConfigureAwait(false);
+            await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
+            try
+            {
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                await tx.RollbackAsync().ConfigureAwait(false);
+                throw;
+            }
+
             return order;
         }
 
