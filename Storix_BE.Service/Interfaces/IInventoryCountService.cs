@@ -29,7 +29,7 @@ namespace Storix_BE.Service.Interfaces
         DateTime? PlannedAt,
         IEnumerable<CreateInventoryCountItemRequest> Items);
 
-    public sealed record UpdateInventoryCountItemRequest(int StockCountItemId, int? ProductId, int? CountedQuantity, string? BinId);
+    public sealed record UpdateInventoryCountItemRequest(int StockCountItemId, int? ProductId, int? CountedQuantity, string? ShelfId);
     public sealed record UpdateStockCountItemsRequest(int PerformedBy, IEnumerable<UpdateInventoryCountItemRequest> Items);
     public sealed record UpdateStockCountTicketStatusRequest(int ApproverId, string Status);
 

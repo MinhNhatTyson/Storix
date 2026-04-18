@@ -29,19 +29,17 @@ public partial class InventoryCountsTicket
 
     public string? ScopeType { get; set; }
 
-    public int? ScopeId { get; set; }
-
     public DateTime? PlannedAt { get; set; }
 
     public int? ApprovedBy { get; set; }
 
     public DateTime? ApprovedAt { get; set; }
 
-    public virtual User? PerformedByNavigation { get; set; }
+    public virtual User? ApprovedByNavigation { get; set; }
 
     public virtual User? AssignedToNavigation { get; set; }
 
-    public virtual User? ApprovedByNavigation { get; set; }
+    public virtual User? PerformedByNavigation { get; set; }
 
     public virtual Warehouse? Warehouse { get; set; }
 
