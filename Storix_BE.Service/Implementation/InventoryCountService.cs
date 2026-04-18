@@ -23,12 +23,31 @@ namespace Storix_BE.Service.Implementation
             _notificationService = notificationService;
             _userRepository = userRepository;
         }
-        public Task<List<InventoryCountsTicket>> GetStockCountTicketsByWarehouseAsync(int companyId, int warehouseId)
+        private static StockCountTicketDto MapToDto(InventoryCountsTicket t)
         {
-            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
-            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+            var zones = (t.StorageZones ?? Enumerable.Empty<StorageZone>())
+                .Select(z => new StorageZoneDto(z.IdCode, z.Code))
+                .ToList();
 
-            return _repo.GetStockCountTicketsByWarehouseAsync(companyId, warehouseId);
+            var items = (t.InventoryCountItems ?? Enumerable.Empty<InventoryCountItem>())
+                .Select(i => new StockCountItemDto(
+                    i.ProductId,
+                    i.Product?.Name,
+                    i.SystemQuantity,
+                    i.CountedQuantity,
+                    i.Discrepancy))
+                .ToList();
+
+            return new StockCountTicketDto(
+                t.Id,
+                t.WarehouseId,
+                t.AssignedTo,
+                t.CreatedAt,
+                t.FinishedDay ?? t.ExecutedDay,
+                t.Description,
+                t.ScopeType,
+                zones,
+                items);
         }
         public async Task<InventoryCountsTicket> CreateStockCountTicketAsync(CreateStockCountTicketRequest request)
         {
@@ -228,24 +247,35 @@ namespace Storix_BE.Service.Implementation
             return updated;
         }
 
-        public Task<List<InventoryCountsTicket>> GetStockCountTicketsByCompanyAsync(int companyId)
+        public async Task<List<StockCountTicketDto>> GetStockCountTicketsByCompanyAsync(int companyId)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
-            return _repo.GetStockCountTicketsByCompanyAsync(companyId);
+            var items = await _repo.GetStockCountTicketsByCompanyAsync(companyId).ConfigureAwait(false);
+            return items.Select(MapToDto).ToList();
         }
 
-        public Task<InventoryCountsTicket> GetStockCountTicketByIdAsync(int companyId, int id)
+        public async Task<StockCountTicketDto> GetStockCountTicketByIdAsync(int companyId, int id)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
             if (id <= 0) throw new ArgumentException("Invalid ticket id.", nameof(id));
-            return _repo.GetStockCountTicketByIdAsync(companyId, id);
+            var item = await _repo.GetStockCountTicketByIdAsync(companyId, id).ConfigureAwait(false);
+            return MapToDto(item);
         }
 
-        public Task<List<InventoryCountsTicket>> GetStockCountTicketsByStaffAsync(int companyId, int staffId)
+        public async Task<List<StockCountTicketDto>> GetStockCountTicketsByStaffAsync(int companyId, int staffId)
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
             if (staffId <= 0) throw new ArgumentException("Invalid staff id.", nameof(staffId));
-            return _repo.GetStockCountTicketsByStaffAsync(companyId, staffId);
+            var items = await _repo.GetStockCountTicketsByStaffAsync(companyId, staffId).ConfigureAwait(false);
+            return items.Select(MapToDto).ToList();
+        }
+
+        public async Task<List<StockCountTicketDto>> GetStockCountTicketsByWarehouseAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+            var items = await _repo.GetStockCountTicketsByWarehouseAsync(companyId, warehouseId).ConfigureAwait(false);
+            return items.Select(MapToDto).ToList();
         }
     }
 }
