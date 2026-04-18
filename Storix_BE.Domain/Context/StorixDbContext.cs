@@ -241,35 +241,6 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("updated_at");
         });
 
-        modelBuilder.Entity<Branch>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("branches_pkey");
-
-            entity.ToTable("branches");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CompanyId).HasColumnName("company_id");
-            entity.Property(e => e.Name)
-                .HasColumnType("character varying")
-                .HasColumnName("name");
-            entity.Property(e => e.Address)
-                .HasColumnType("character varying")
-                .HasColumnName("address");
-            entity.Property(e => e.Status)
-                .HasColumnType("character varying")
-                .HasColumnName("status");
-            entity.Property(e => e.CreatedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-
-            entity.HasOne(d => d.Company).WithMany(p => p.Branches)
-                .HasForeignKey(d => d.CompanyId)
-                .HasConstraintName("fk_branches_company_id");
-        });
-
         modelBuilder.Entity<CompanyPayment>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("company_payments_pkey");
@@ -1071,7 +1042,15 @@ public partial class StorixDbContext : DbContext
                 .HasColumnName("type");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
 
-            entity.HasOne(d => d.PerformedByNavigation).WithMany(p => p.InventoryCountsTickets)
+            entity.HasOne(d => d.ApprovedByNavigation).WithMany(p => p.StockCountsTicketApprovedByNavigations)
+                .HasForeignKey(d => d.ApprovedBy)
+                .HasConstraintName("fk_stock_counts_tickets_approved_by");
+
+            entity.HasOne(d => d.AssignedToNavigation).WithMany(p => p.StockCountsTicketAssignedToNavigations)
+                .HasForeignKey(d => d.AssignedTo)
+                .HasConstraintName("fk_stock_counts_tickets_assigned_to");
+
+            entity.HasOne(d => d.PerformedByNavigation).WithMany(p => p.StockCountsTicketPerformedByNavigations)
                 .HasForeignKey(d => d.PerformedBy)
                 .HasConstraintName("fk_stock_counts_tickets_performed_by");
 

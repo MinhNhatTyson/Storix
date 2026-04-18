@@ -17,6 +17,24 @@ namespace Storix_BE.Repository.Implementation
         {
             _context = context;
         }
+        public async Task<List<InventoryCountsTicket>> GetStockCountTicketsByWarehouseAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+
+            var items = await _context.InventoryCountsTickets
+                .Include(t => t.InventoryCountItems)
+                    .ThenInclude(i => i.Product)
+                .Include(t => t.PerformedByNavigation)
+                .Where(t => t.Warehouse != null
+                            && t.Warehouse.CompanyId == companyId
+                            && t.WarehouseId == warehouseId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            return items;
+        }
 
         public async Task<InventoryCountsTicket> CreateStockCountTicketAsync(InventoryCountsTicket ticket)
         {
@@ -47,9 +65,10 @@ namespace Storix_BE.Repository.Implementation
                 foreach (var z in zones)
                     ticket.StorageZones.Add(z);
             }
+
             ticket.CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             if (string.IsNullOrWhiteSpace(ticket.Status))
-                ticket.Status = "Pending";
+                ticket.Status = "Approved";
 
             var productIds = ticket.InventoryCountItems.Where(i => i.ProductId.HasValue).Select(i => i.ProductId!.Value).Distinct().ToList();
             Dictionary<int, int> systemQty = new();
@@ -192,13 +211,93 @@ namespace Storix_BE.Repository.Implementation
             if (ticket == null)
                 throw new InvalidOperationException($"InventoryCountsTicket with id {ticketId} not found.");
 
-            var incomingProductIds = items
+            var incomingList = items.ToList();
+
+            var incomingProductIds = incomingList
                 .Where(i => i.ProductId.HasValue)
                 .Select(i => i.ProductId!.Value)
                 .Distinct()
                 .ToList();
 
-            var incomingLocations = items
+            // If incoming items carry Shelf identifiers in Description (non-numeric ShelfId strings),
+            // attempt to resolve them to concrete InventoryLocation.Id values BEFORE validation.
+            var needResolve = incomingList
+                .Where(i => !i.LocationId.HasValue && !string.IsNullOrWhiteSpace(i.Description) && i.ProductId.HasValue)
+                .ToList();
+
+            if (needResolve.Any())
+            {
+                // Collect distinct shelf identifier strings (trimmed)
+                var shelfIdentifiers = needResolve
+                    .Select(i => i.Description!.Trim())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct()
+                    .ToList();
+
+                if (shelfIdentifiers.Any() && ticket.WarehouseId.HasValue && incomingProductIds.Any())
+                {
+                    // Load candidate shelves by IdCode or Code matching provided identifiers.
+                    var shelves = await _context.Shelves
+                        .Where(s => (s.IdCode != null && shelfIdentifiers.Contains(s.IdCode))
+                                    || (s.Code != null && shelfIdentifiers.Contains(s.Code)))
+                        .ToListAsync()
+                        .ConfigureAwait(false);
+
+                    // Load inventories for ticket's warehouse for the incoming product set.
+                    var inventories = await _context.Inventories
+                        .Where(inv => inv.WarehouseId == ticket.WarehouseId && inv.ProductId.HasValue && incomingProductIds.Contains(inv.ProductId.Value))
+                        .ToListAsync()
+                        .ConfigureAwait(false);
+
+                    if (shelves.Any() && inventories.Any())
+                    {
+                        var shelfIds = shelves.Select(s => s.Id).Distinct().ToList();
+                        var inventoryIds = inventories.Select(inv => inv.Id).Distinct().ToList();
+
+                        // Load matching inventory locations (joined by inventory and shelf)
+                        var candidateLocations = await _context.InventoryLocations
+                            .AsNoTracking()
+                            .Where(il => il.InventoryId.HasValue && inventoryIds.Contains(il.InventoryId.Value)
+                                         && il.ShelfId.HasValue && shelfIds.Contains(il.ShelfId.Value))
+                            .Include(il => il.Inventory)
+                            .Include(il => il.Shelf)
+                            .ToListAsync()
+                            .ConfigureAwait(false);
+
+                        // Resolve per incoming item
+                        foreach (var incoming in needResolve)
+                        {
+                            var ident = incoming.Description!.Trim();
+                            // Find shelf by IdCode or Code
+                            var shelf = shelves.FirstOrDefault(s =>
+                                (!string.IsNullOrWhiteSpace(s.IdCode) && string.Equals(s.IdCode, ident, StringComparison.OrdinalIgnoreCase))
+                                || (!string.IsNullOrWhiteSpace(s.Code) && string.Equals(s.Code, ident, StringComparison.OrdinalIgnoreCase)));
+
+                            if (shelf == null) continue;
+
+                            // Find inventory for this product in the ticket warehouse
+                            var inventory = inventories.FirstOrDefault(inv => inv.ProductId == incoming.ProductId);
+                            if (inventory == null) continue;
+
+                            // Prefer location with non-zero quantity, otherwise pick any matching location
+                            var loc = candidateLocations
+                                .Where(l => l.InventoryId == inventory.Id && l.ShelfId == shelf.Id)
+                                .OrderByDescending(l => l.Quantity ?? 0)
+                                .FirstOrDefault();
+
+                            if (loc != null)
+                            {
+                                incoming.LocationId = loc.Id;
+                                // clear Description because we successfully resolved to a concrete location
+                                incoming.Description = null;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recompute incomingLocations now that some descriptions may have been resolved to LocationId.
+            var incomingLocations = incomingList
                 .Where(i => i.LocationId.HasValue)
                 .Select(i => (ProductId: i.ProductId, LocationId: i.LocationId))
                 .ToList();
@@ -211,7 +310,7 @@ namespace Storix_BE.Repository.Implementation
             var existingItems = ticket.InventoryCountItems.ToList();
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
-            foreach (var incoming in items)
+            foreach (var incoming in incomingList)
             {
                 InventoryCountItem? existing = null;
 
@@ -274,7 +373,7 @@ namespace Storix_BE.Repository.Implementation
                     if (incoming.LocationId.HasValue && !existing.LocationId.HasValue)
                         existing.LocationId = incoming.LocationId;
 
-                    // Preserve description if provided (helps carry BinId strings that couldn't be resolved earlier)
+                    // Preserve description if provided (helps carry ShelfId strings that couldn't be resolved earlier)
                     if (!string.IsNullOrWhiteSpace(incoming.Description))
                         existing.Description = incoming.Description;
                 }

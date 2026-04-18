@@ -23,7 +23,13 @@ namespace Storix_BE.Service.Implementation
             _notificationService = notificationService;
             _userRepository = userRepository;
         }
+        public Task<List<InventoryCountsTicket>> GetStockCountTicketsByWarehouseAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
 
+            return _repo.GetStockCountTicketsByWarehouseAsync(companyId, warehouseId);
+        }
         public async Task<InventoryCountsTicket> CreateStockCountTicketAsync(CreateStockCountTicketRequest request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
@@ -163,12 +169,16 @@ namespace Storix_BE.Service.Implementation
             if (request.Items == null || !request.Items.Any()) throw new InvalidOperationException("Items payload cannot be empty.");
 
             // Map incoming DTOs to domain InventoryCountItem instances.
-            // Note: clients provide BinId (string). If BinId is an integer representation of an InventoryLocation.Id we use it.
-            // Otherwise we preserve the BinId string in Description so repository or operators can resolve it later if needed.
+            // Clients now provide ShelfId (string) which may be:
+            //  - a numeric InventoryLocation.Id (as string)
+            //  - a numeric Shelf.Id (as string)
+            //  - a Shelf identifier code (Shelf.IdCode or Shelf.Code)
+            // If a numeric InventoryLocation Id is provided we set LocationId directly.
+            // Otherwise we preserve the ShelfId string in Description so repository can resolve it to an InventoryLocation.
             var domainItems = request.Items.Select(i =>
             {
                 int? locationId = null;
-                if (!string.IsNullOrWhiteSpace(i.BinId) && int.TryParse(i.BinId, out var parsedLocationId) && parsedLocationId > 0)
+                if (!string.IsNullOrWhiteSpace(i.ShelfId) && int.TryParse(i.ShelfId, out var parsedLocationId) && parsedLocationId > 0)
                     locationId = parsedLocationId;
 
                 return new InventoryCountItem
@@ -176,9 +186,9 @@ namespace Storix_BE.Service.Implementation
                     Id = i.StockCountItemId,
                     ProductId = i.ProductId,
                     CountedQuantity = i.CountedQuantity,
-                    // if BinId is numeric -> set LocationId; otherwise preserve BinId in Description for downstream resolution
+                    // if ShelfId is numeric -> set LocationId; otherwise preserve ShelfId string in Description
                     LocationId = locationId,
-                    Description = locationId == null ? i.BinId : null
+                    Description = locationId == null ? i.ShelfId : null
                 };
             }).ToList();
 
