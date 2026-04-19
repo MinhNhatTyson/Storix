@@ -72,6 +72,7 @@ namespace Storix_BE.Service.Implementation
                 x.ProductId,
                 x.ProductName,
                 x.ProductSku,
+                x.ProductImage,
                 x.Quantity,
                 x.ReservedQuantity,
                 x.Quantity - x.ReservedQuantity,

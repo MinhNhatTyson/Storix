@@ -85,6 +85,7 @@ namespace Storix_BE.Service.Interfaces
         int ProductId,
         string? ProductName,
         string? ProductSku,
+        string? ProductImage,
         int Quantity,
         int ReservedQuantity,
         int AvailableQuantity,
