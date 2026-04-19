@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Models;
 using Storix_BE.Service.Interfaces;
 using System;
@@ -45,6 +46,10 @@ namespace Storix_BE.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(new { message = ex.InnerException?.Message ?? ex.Message });
             }
             catch (Exception ex)
             {

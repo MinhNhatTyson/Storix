@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Models;
 using Storix_BE.Repository.Interfaces;
 using Storix_BE.Service.Interfaces;
@@ -34,12 +35,19 @@ namespace Storix_BE.Service.Implementation
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
             };
 
-            await _warehouseTransferRepository.CreateTransferOrderAsync(entity);
+            try
+            {
+                await _warehouseTransferRepository.CreateTransferOrderAsync(entity);
 
-            if (request.CarrierUserId.HasValue && request.CarrierUserId.Value > 0)
-                await AddActivityAsync(createdBy, $"CARRIER:{request.CarrierUserId.Value}", entity.Id);
+                if (request.CarrierUserId.HasValue && request.CarrierUserId.Value > 0)
+                    await AddActivityAsync(createdBy, $"CARRIER:{request.CarrierUserId.Value}", entity.Id);
 
-            await AddActivityAsync(createdBy, "TRANSFER_CREATED_DRAFT", entity.Id);
+                await AddActivityAsync(createdBy, "TRANSFER_CREATED_DRAFT", entity.Id);
+            }
+            catch (DbUpdateException ex)
+            {
+                throw new InvalidOperationException(ex.InnerException?.Message ?? ex.Message, ex);
+            }
 
             if (request.SubmitAfterCreate)
                 return await SubmitAsync(companyId, createdBy, entity.Id);
