@@ -216,7 +216,7 @@ namespace Storix_BE.Service.Implementation
         public async Task<TransferOrderDetailDto> ApproveAsync(int companyId, int actorUserId, int transferOrderId, int? receiverStaffId = null)
         {
             var order = await GetOrderInCompanyAsync(companyId, transferOrderId);
-            await EnsureManagerAsync(actorUserId, companyId);
+            await EnsureAdminAsync(actorUserId, companyId);
             if (!string.Equals(order.Status, TransferStatuses.PendingApproval, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Only PENDING_APPROVAL can be approved.");
 
@@ -257,7 +257,7 @@ namespace Storix_BE.Service.Implementation
             if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("reason is required", nameof(reason));
 
             var order = await GetOrderInCompanyAsync(companyId, transferOrderId);
-            await EnsureManagerAsync(actorUserId, companyId);
+            await EnsureAdminAsync(actorUserId, companyId);
             if (!string.Equals(order.Status, TransferStatuses.PendingApproval, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Only PENDING_APPROVAL can be rejected.");
 
@@ -389,7 +389,7 @@ namespace Storix_BE.Service.Implementation
         public async Task<TransferOrderDetailDto> CancelAsync(int companyId, int actorUserId, int transferOrderId, string? reason)
         {
             var order = await GetOrderInCompanyAsync(companyId, transferOrderId);
-            await EnsureManagerAsync(actorUserId, companyId);
+            await EnsureAdminAsync(actorUserId, companyId);
 
             if (!new[] { TransferStatuses.Draft, TransferStatuses.PendingApproval, TransferStatuses.Approved }.Contains((order.Status ?? "").ToUpperInvariant()))
                 throw new InvalidOperationException("Only DRAFT/PENDING_APPROVAL/APPROVED can be cancelled.");
@@ -481,6 +481,14 @@ namespace Storix_BE.Service.Implementation
             if (user == null) throw new InvalidOperationException("User not found.");
             if ((user.CompanyId ?? 0) != companyId) throw new InvalidOperationException("User out of company scope.");
             if ((user.RoleId ?? 0) != 3) throw new InvalidOperationException("Only Manager(roleId=3).");
+        }
+
+        private async Task EnsureAdminAsync(int userId, int companyId)
+        {
+            var user = await _warehouseTransferRepository.GetUserByIdAsync(userId);
+            if (user == null) throw new InvalidOperationException("User not found.");
+            if ((user.CompanyId ?? 0) != companyId) throw new InvalidOperationException("User out of company scope.");
+            if ((user.RoleId ?? 0) != 2) throw new InvalidOperationException("Only Admin(roleId=2).");
         }
 
         private async Task EnsureStaffAssignedToWarehouseAsync(int userId, int warehouseId, int companyId)
