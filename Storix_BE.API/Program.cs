@@ -43,7 +43,6 @@ builder.Services.AddControllers();
 builder.Logging.AddSerilog();
 builder.Services.AddSingleton(Log.Logger);
 builder.Services.AddSingleton<Serilog.Extensions.Hosting.DiagnosticContext>();
-builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddControllers(options =>
 {
     options.SuppressAsyncSuffixInActionNames = false;
