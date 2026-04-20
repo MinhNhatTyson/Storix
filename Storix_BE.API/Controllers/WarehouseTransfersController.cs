@@ -119,7 +119,7 @@ namespace Storix_BE.API.Controllers
         }
 
         [HttpGet("warehouse/{warehouseId:int}")]
-        public async Task<IActionResult> GetByWarehouseId(int warehouseId)
+        public async Task<IActionResult> GetBySourceWarehouseId(int warehouseId, [FromQuery] string? status)
         {
             if (warehouseId <= 0) return BadRequest(new { message = "Invalid warehouseId." });
 
@@ -130,7 +130,7 @@ namespace Storix_BE.API.Controllers
 
             try
             {
-                var result = await _service.GetAllAsync(caller.CompanyId.Value, warehouseId, null, null).ConfigureAwait(false);
+                var result = await _service.GetAllBySourceWarehouseAsync(caller.CompanyId.Value, warehouseId, status).ConfigureAwait(false);
                 return Ok(result);
             }
             catch (ArgumentException ex)
