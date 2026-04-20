@@ -64,6 +64,10 @@ namespace Storix_BE.Service.Implementation
             {
                 throw new InvalidOperationException(ex.InnerException?.Message ?? ex.Message, ex);
             }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Unable to create transfer: {ex.Message}", ex);
+            }
 
             return await GetByIdAsync(companyId, entity.Id);
         }
