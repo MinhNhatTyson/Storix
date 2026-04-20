@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Storix_BE.Domain\Storix_BE.Domain.csproj" />
   </ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="AutoMapper" Version="12.0.1" />
 		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
 		<PackageReference Include="CsvHelper" Version="33.1.0" />

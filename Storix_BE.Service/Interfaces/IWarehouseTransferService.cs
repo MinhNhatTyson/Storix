@@ -43,6 +43,7 @@ namespace Storix_BE.Service.Interfaces
         int Id,
         int? ProductId,
         string? ProductName,
+        string? ProductImage,
         int? Quantity,
         int? OutboundOrderItemId,
         int? InboundOrderItemId);
