@@ -151,7 +151,7 @@ namespace Storix_BE.Service.Implementation
         {
             var totalItems = t.TransferOrderItems?.Count ?? 0;
             var totalQuantity = t.TransferOrderItems?.Sum(x => x.Quantity ?? 0) ?? 0;
-            return new TransferOrderListDto(t.Id, t.SourceWarehouseId, t.SourceWarehouse?.Name, t.DestinationWarehouseId, t.DestinationWarehouse?.Name, t.CreatedBy, t.CreatedByNavigation?.FullName, t.Status, t.CreatedAt, totalItems, totalQuantity);
+            return new TransferOrderListDto(t.Id, t.SourceWarehouseId, t.SourceWarehouse?.Name, t.DestinationWarehouseId, t.DestinationWarehouse?.Name, t.CreatedBy, t.CreatedByNavigation?.FullName, t.Status, t.CreatedAt, t.OutboundTicketId, t.InboundTicketId, totalItems, totalQuantity);
         }
 
         private static TransferOrderDetailDto MapDetail(TransferOrder t, IEnumerable<TransferOrderTimelineDto> timeline)
@@ -160,7 +160,7 @@ namespace Storix_BE.Service.Implementation
                 .Select(i => new TransferOrderItemDto(i.Id, i.ProductId, i.Product?.Name, i.Quantity, i.OutboundOrderItemId, i.InboundOrderItemId))
                 .ToList();
 
-            return new TransferOrderDetailDto(t.Id, t.SourceWarehouseId, t.SourceWarehouse?.Name, t.DestinationWarehouseId, t.DestinationWarehouse?.Name, t.CreatedBy, t.CreatedByNavigation?.FullName, t.Status, t.CreatedAt, items, timeline);
+            return new TransferOrderDetailDto(t.Id, t.SourceWarehouseId, t.SourceWarehouse?.Name, t.DestinationWarehouseId, t.DestinationWarehouse?.Name, t.CreatedBy, t.CreatedByNavigation?.FullName, t.Status, t.CreatedAt, t.OutboundTicketId, t.InboundTicketId, items, timeline);
         }
 
         private async Task<TransferOrder> GetOrderInCompanyAsync(int companyId, int transferOrderId)
