@@ -12,8 +12,6 @@ public partial class Report
 
     public string? ReportType { get; set; }
 
-    public int? BranchId { get; set; }
-
     public int? WarehouseId { get; set; }
 
     public int? ProductId { get; set; }

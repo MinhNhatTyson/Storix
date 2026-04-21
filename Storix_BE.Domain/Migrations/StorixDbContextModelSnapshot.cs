@@ -59,47 +59,6 @@ namespace Storix_BE.Domain.Migrations
                     b.ToTable("activity_logs", (string)null);
                 });
 
-            modelBuilder.Entity("Storix_BE.Domain.Models.Branch", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasColumnType("character varying")
-                        .HasColumnName("address");
-
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("integer")
-                        .HasColumnName("company_id");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("character varying")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("character varying")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("branches_pkey");
-
-                    b.HasIndex("CompanyId");
-
-                    b.ToTable("branches", (string)null);
-                });
-
             modelBuilder.Entity("Storix_BE.Domain.Models.Company", b =>
                 {
                     b.Property<int>("Id")
@@ -2062,10 +2021,6 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("character varying")
                         .HasColumnName("address");
 
-                    b.Property<int?>("BranchId")
-                        .HasColumnType("integer")
-                        .HasColumnName("branch_id");
-
                     b.Property<int?>("CompanyId")
                         .HasColumnType("integer")
                         .HasColumnName("company_id");
@@ -2112,8 +2067,6 @@ namespace Storix_BE.Domain.Migrations
 
                     b.HasKey("Id")
                         .HasName("warehouses_pkey");
-
-                    b.HasIndex("BranchId");
 
                     b.HasIndex("CompanyId");
 
@@ -2163,16 +2116,6 @@ namespace Storix_BE.Domain.Migrations
                         .HasConstraintName("fk_activity_logs_user_id");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Storix_BE.Domain.Models.Branch", b =>
-                {
-                    b.HasOne("Storix_BE.Domain.Models.Company", "Company")
-                        .WithMany("Branches")
-                        .HasForeignKey("CompanyId")
-                        .HasConstraintName("fk_branches_company_id");
-
-                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("Storix_BE.Domain.Models.CompanyPayment", b =>
@@ -2806,17 +2749,10 @@ namespace Storix_BE.Domain.Migrations
 
             modelBuilder.Entity("Storix_BE.Domain.Models.Warehouse", b =>
                 {
-                    b.HasOne("Storix_BE.Domain.Models.Branch", "Branch")
-                        .WithMany("Warehouses")
-                        .HasForeignKey("BranchId")
-                        .HasConstraintName("fk_warehouses_branch_id");
-
                     b.HasOne("Storix_BE.Domain.Models.Company", "Company")
                         .WithMany("Warehouses")
                         .HasForeignKey("CompanyId")
                         .HasConstraintName("fk_warehouses_company_id");
-
-                    b.Navigation("Branch");
 
                     b.Navigation("Company");
                 });
@@ -2838,15 +2774,8 @@ namespace Storix_BE.Domain.Migrations
                     b.Navigation("Warehouse");
                 });
 
-            modelBuilder.Entity("Storix_BE.Domain.Models.Branch", b =>
-                {
-                    b.Navigation("Warehouses");
-                });
-
             modelBuilder.Entity("Storix_BE.Domain.Models.Company", b =>
                 {
-                    b.Navigation("Branches");
-
                     b.Navigation("CompanyPayments");
 
                     b.Navigation("ProductCategories");

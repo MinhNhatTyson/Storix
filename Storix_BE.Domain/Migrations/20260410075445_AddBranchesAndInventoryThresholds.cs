@@ -53,12 +53,6 @@ namespace Storix_BE.Domain.Migrations
                 table: "storage_zones",
                 newName: "isVulnerable");
 
-            migrationBuilder.AddColumn<int>(
-                name: "branch_id",
-                table: "warehouses",
-                type: "integer",
-                nullable: true);
-
             migrationBuilder.AddColumn<DateTime>(
                 name: "approved_at",
                 table: "stock_counts_tickets",
@@ -157,29 +151,6 @@ namespace Storix_BE.Domain.Migrations
                 nullable: true);
 
             migrationBuilder.CreateTable(
-                name: "branches",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    company_id = table.Column<int>(type: "integer", nullable: true),
-                    name = table.Column<string>(type: "character varying", nullable: true),
-                    address = table.Column<string>(type: "character varying", nullable: true),
-                    status = table.Column<string>(type: "character varying", nullable: true),
-                    created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
-                    updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("branches_pkey", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_branches_company_id",
-                        column: x => x.company_id,
-                        principalTable: "companies",
-                        principalColumn: "id");
-                });
-
-            migrationBuilder.CreateTable(
                 name: "notifications",
                 columns: table => new
                 {
@@ -231,11 +202,6 @@ namespace Storix_BE.Domain.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_warehouses_branch_id",
-                table: "warehouses",
-                column: "branch_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_stock_counts_tickets_scope_id",
                 table: "stock_counts_tickets",
                 column: "scope_id");
@@ -244,11 +210,6 @@ namespace Storix_BE.Domain.Migrations
                 name: "IX_stock_count_items_location_id",
                 table: "stock_count_items",
                 column: "location_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_branches_company_id",
-                table: "branches",
-                column: "company_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_user_notifications_notification_id",
@@ -274,12 +235,6 @@ namespace Storix_BE.Domain.Migrations
                 principalTable: "storage_zones",
                 principalColumn: "id");
 
-            migrationBuilder.AddForeignKey(
-                name: "fk_warehouses_branch_id",
-                table: "warehouses",
-                column: "branch_id",
-                principalTable: "branches",
-                principalColumn: "id");
         }
 
         /// <inheritdoc />
@@ -293,22 +248,11 @@ namespace Storix_BE.Domain.Migrations
                 name: "fk_stock_counts_tickets_scope_id",
                 table: "stock_counts_tickets");
 
-            migrationBuilder.DropForeignKey(
-                name: "fk_warehouses_branch_id",
-                table: "warehouses");
-
-            migrationBuilder.DropTable(
-                name: "branches");
-
             migrationBuilder.DropTable(
                 name: "user_notifications");
 
             migrationBuilder.DropTable(
                 name: "notifications");
-
-            migrationBuilder.DropIndex(
-                name: "IX_warehouses_branch_id",
-                table: "warehouses");
 
             migrationBuilder.DropIndex(
                 name: "IX_stock_counts_tickets_scope_id",
@@ -317,10 +261,6 @@ namespace Storix_BE.Domain.Migrations
             migrationBuilder.DropIndex(
                 name: "IX_stock_count_items_location_id",
                 table: "stock_count_items");
-
-            migrationBuilder.DropColumn(
-                name: "branch_id",
-                table: "warehouses");
 
             migrationBuilder.DropColumn(
                 name: "approved_at",
