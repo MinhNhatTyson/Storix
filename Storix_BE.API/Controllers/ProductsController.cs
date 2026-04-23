@@ -18,7 +18,46 @@ namespace Storix_BE.API.Controllers
         public ProductsController(IProductService service)
         {
             _service = service;
-        }        
+        }
+        /// <summary>
+        /// GET /api/products/{id}/sku-detail
+        /// Returns the decomposed SKU segments for a product.
+        /// </summary>
+        [HttpGet("{productId:int}/sku-detail")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetSkuDetail(int productId, [FromQuery] int userId)
+        {
+            if (productId <= 0) return BadRequest(new { message = "Invalid product id." });
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+
+            int companyId;
+            try { companyId = await _service.GetCompanyIdByUserIdAsync(userId); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+
+            var product = await _service.GetByIdAsync(productId, companyId);
+            if (product is null) return NotFound();
+
+            // Decompose the SKU string back into its labelled segments for the UI
+            var flagList = new List<string>();
+            if (product.IsEsd == true) flagList.Add("ESD");
+            if (product.IsMsd == true) flagList.Add("MSD");
+            if (product.IsCold == true) flagList.Add("CLD");
+            if (product.IsVulnerable == true) flagList.Add("VUL");
+            if (product.IsHighValue == true) flagList.Add("HV");
+
+            return Ok(new
+            {
+                productId = product.Id,
+                sku = product.Sku,
+                defaultSupplierId = product.DefaultSupplierId,
+                defaultSupplierName = product.DefaultSupplier?.Name,
+                categoryCode = product.Category?.CategoryCode,
+                packageType = product.PackageType,
+                sizeStandard = product.SizeStandard,
+                material = product.Material,
+                storageFlags = flagList
+            });
+        }
         [HttpGet("get-all/{userId:int}")]
         [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetAllProductsFromACompany(int userId)
@@ -305,24 +344,27 @@ namespace Storix_BE.API.Controllers
            }
        }
 
-         [HttpPost("categories/create")]
-         [Authorize(Roles = "2")]
-       public async Task<IActionResult> CreateCategory([FromBody] CreateProductCategoryRequest request)
-       {
-               if (request == null) return BadRequest(new { message = "Request cannot be null." });
-    
-               try
-               {
-        var created = await _service.CreateProductCategoryAsync(request);
-                       return CreatedAtAction(nameof(GetAllCategoriesForCompany), new { userId = request.CompanyId }, created);
-               }
-               catch (InvalidOperationException ex)
-               {
-                       return BadRequest(new { message = ex.Message });
-               }
-       }
-    
-         [HttpDelete("categories/{id:int}")]
+        [HttpPost("categories/create")]
+        [Authorize(Roles = "2")]
+        public async Task<IActionResult> CreateCategory([FromBody] CreateProductCategoryRequest request)
+        {
+            if (request == null) return BadRequest(new { message = "Request cannot be null." });
+
+            try
+            {
+                var created = await _service.CreateProductCategoryAsync(request);
+                return CreatedAtAction(
+                    nameof(GetAllCategoriesForCompany),
+                    new { userId = request.CompanyId },
+                    created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("categories/{id:int}")]
          [Authorize(Roles = "2")]
            public async Task<IActionResult> DeleteCategory(int id)
             {
@@ -376,6 +418,29 @@ namespace Storix_BE.API.Controllers
             {
                 return StatusCode(500, new { message = ex.Message });
             }
+        }
+        [HttpPost("get-by-zones/{userId:int}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetAllProductWithZone([FromBody] IEnumerable<int> zoneIds)
+        {            
+            if (zoneIds == null || !zoneIds.Any()) return BadRequest(new { message = "Zone ids are required." });            
+
+            // fetch products associated with provided zones
+            var products = await _service.GetAllProductWithZoneAsync(zoneIds);
+
+            var result = products.Select(p => new
+            {
+                id = p.Id,
+                name = p.Name,
+                category = p.Category is null ? null : new { id = p.Category.Id, name = p.Category.Name, code = p.Category.CategoryCode },
+                unit = p.Unit,
+                width = p.Width,
+                height = p.Height,
+                length = p.Length,
+                image = p.Image
+            });
+
+            return Ok(result);
         }
     }
 }
