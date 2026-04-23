@@ -1323,6 +1323,10 @@ namespace Storix_BE.Domain.Migrations
                         .HasColumnType("text")
                         .HasColumnName("pdf_url");
 
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
                     b.Property<string>("ReportType")
                         .HasColumnType("character varying")
                         .HasColumnName("report_type");
@@ -1346,6 +1350,10 @@ namespace Storix_BE.Domain.Migrations
                     b.Property<DateTime?>("TimeTo")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("time_to");
+
+                    b.Property<int?>("InventoryCountTicketId")
+                        .HasColumnType("integer")
+                        .HasColumnName("inventory_count_ticket_id");
 
                     b.Property<int?>("WarehouseId")
                         .HasColumnType("integer")

@@ -1,5 +1,6 @@
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using Microsoft.Extensions.Logging;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -21,11 +22,13 @@ namespace Storix_BE.Service.Implementation
     {
         private readonly IReportingRepository _repo;
         private readonly Cloudinary _cloudinary;
+        private readonly ILogger<ReportingService> _logger;
 
-        public ReportingService(IReportingRepository repo, Cloudinary cloudinary)
+        public ReportingService(IReportingRepository repo, Cloudinary cloudinary, ILogger<ReportingService> logger)
         {
             _repo = repo;
             _cloudinary = cloudinary;
+            _logger = logger;
         }
 
         public async Task<ReportDetailDto> CreateReportAsync(int companyId, int createdByUserId, CreateReportRequest payload)
@@ -36,7 +39,7 @@ namespace Storix_BE.Service.Implementation
             if (string.IsNullOrWhiteSpace(payload.ReportType)) throw new ArgumentException("ReportType is required.", nameof(payload.ReportType));
             if (payload.TimeTo < payload.TimeFrom) throw new ArgumentException("TimeTo must be >= TimeFrom.");
 
-            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            var createdAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             var paramsOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
 
@@ -51,7 +54,7 @@ namespace Storix_BE.Service.Implementation
                 TimeFrom = payload.TimeFrom,
                 TimeTo = payload.TimeTo,
                 Status = ReportStatus.Running,
-                CreatedAt = now,
+                CreatedAt = createdAt,
                 ParametersJson = JsonSerializer.Serialize(new
                 {
                     reportType = payload.ReportType,
@@ -62,6 +65,17 @@ namespace Storix_BE.Service.Implementation
                     timeTo = payload.TimeTo
                 }, paramsOptions)
             };
+
+            _logger.LogInformation(
+                "Creating report draft. CompanyId={CompanyId}, UserId={UserId}, ReportType={ReportType}, WarehouseId={WarehouseId}, ProductId={ProductId}, InventoryCountTicketId={InventoryCountTicketId}, TimeFrom={TimeFrom}, TimeTo={TimeTo}",
+                companyId,
+                createdByUserId,
+                payload.ReportType,
+                payload.WarehouseId,
+                payload.ProductId,
+                payload.InventoryCountTicketId,
+                payload.TimeFrom,
+                payload.TimeTo);
 
             report = await _repo.CreateReportAsync(report).ConfigureAwait(false);
 
@@ -178,8 +192,13 @@ namespace Storix_BE.Service.Implementation
                 }
 
                 report.Status = ReportStatus.Succeeded;
-                report.CompletedAt = now;
+                report.CompletedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
                 report.ErrorMessage = null;
+                _logger.LogInformation(
+                    "Report generation succeeded. ReportId={ReportId}, ReportType={ReportType}, Status={Status}",
+                    report.Id,
+                    report.ReportType,
+                    report.Status);
                 await _repo.UpdateReportAsync(report).ConfigureAwait(false);
 
                 return new ReportDetailDto(
@@ -199,8 +218,14 @@ namespace Storix_BE.Service.Implementation
             catch (Exception ex)
             {
                 report.Status = ReportStatus.Failed;
-                report.CompletedAt = now;
+                report.CompletedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
                 report.ErrorMessage = ex.Message;
+                _logger.LogError(
+                    ex,
+                    "Report generation failed. ReportId={ReportId}, ReportType={ReportType}, CompanyId={CompanyId}",
+                    report.Id,
+                    report.ReportType,
+                    companyId);
                 await _repo.UpdateReportAsync(report).ConfigureAwait(false);
                 throw;
             }

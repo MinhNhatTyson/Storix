@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Models;
@@ -174,7 +174,7 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("numeric(5,2)")
                 .HasColumnName("line_discount");
 
-            // Generated/computed column — read-only from EF's perspective
+            // Generated/computed column â€” read-only from EF's perspective
             entity.Property(e => e.EffectiveUnitCost)
                 .HasColumnType("numeric(18,4)")
                 .HasColumnName("effective_unit_cost")
@@ -201,7 +201,7 @@ public partial class StorixDbContext : DbContext
                 .IsUnique()
                 .HasDatabaseName("uq_batch_inbound_order_item");
 
-            // Partial FIFO index — mirrors the WHERE clause in the SQL script.
+            // Partial FIFO index â€” mirrors the WHERE clause in the SQL script.
             // EF Core supports this via HasFilter.
             entity.HasIndex(e => new { e.WarehouseId, e.ProductId, e.InboundDate })
                 .HasFilter("is_exhausted = FALSE")
@@ -1539,6 +1539,8 @@ public partial class StorixDbContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("report_type");
             entity.Property(e => e.WarehouseId).HasColumnName("warehouse_id");
+            entity.Property(e => e.ProductId).HasColumnName("product_id");
+            entity.Property(e => e.InventoryCountTicketId).HasColumnName("inventory_count_ticket_id");
             entity.Property(e => e.TimeFrom)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("time_from");
@@ -1598,3 +1600,4 @@ public partial class StorixDbContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+
