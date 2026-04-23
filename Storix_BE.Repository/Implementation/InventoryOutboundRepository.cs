@@ -688,17 +688,6 @@ namespace Storix_BE.Repository.Implementation
                 }
 
                 order.Status = finalStatus;
-                await _context.SaveChangesAsync().ConfigureAwait(false);
-                await tx.CommitAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-                await tx.RollbackAsync().ConfigureAwait(false);
-                throw;
-            }
-
-            try
-            {
                 _context.OutboundOrderStatusHistories.Add(new OutboundOrderStatusHistory
                 {
                     OutboundOrderId = order.Id,
@@ -709,10 +698,12 @@ namespace Storix_BE.Repository.Implementation
                 });
 
                 await _context.SaveChangesAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogWarning(ex, "Failed to write outbound status history. OutboundOrderId={OutboundOrderId}", order.Id);
+                await tx.RollbackAsync().ConfigureAwait(false);
+                throw;
             }
 
             return order;
@@ -931,16 +922,26 @@ namespace Storix_BE.Repository.Implementation
             var issueId = Guid.NewGuid().ToString("N");
             var action = $"OUTBOUND_ISSUE_CREATE:ISSUE_ID={issueId};ORDER={outboundOrderId};ITEM={outboundOrderItemId};PRODUCT={item.ProductId.Value};QTY={issueQuantity};REASON={ToBase64(reason.Trim())};NOTE={ToBase64(note)};IMAGE={ToBase64(imageUrl)};REPORTED_BY={reportedBy}";
 
-            _context.ActivityLogs.Add(new ActivityLog
+            await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
+            try
             {
-                UserId = reportedBy,
-                Entity = "OutboundOrderIssue",
-                EntityId = outboundOrderId,
-                Action = action,
-                Timestamp = now
-            });
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    UserId = reportedBy,
+                    Entity = "OutboundOrderIssue",
+                    EntityId = outboundOrderId,
+                    Action = action,
+                    Timestamp = now
+                });
 
-            await _context.SaveChangesAsync().ConfigureAwait(false);
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                await tx.RollbackAsync().ConfigureAwait(false);
+                throw;
+            }
 
             return new IInventoryOutboundRepository.OutboundIssueDto(
                 ParseIssueId(issueId.ToString()),
@@ -1006,16 +1007,26 @@ namespace Storix_BE.Repository.Implementation
             var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var action = $"OUTBOUND_ISSUE_UPDATE:ISSUE_ID={issueKey};ORDER={outboundOrderId};ITEM={targetItemId};PRODUCT={item.ProductId.Value};QTY={targetQty};REASON={ToBase64(targetReason)};NOTE={ToBase64(targetNote)};IMAGE={ToBase64(targetImage)};UPDATED_BY={updatedBy}";
 
-            _context.ActivityLogs.Add(new ActivityLog
+            await using var tx = await _context.Database.BeginTransactionAsync().ConfigureAwait(false);
+            try
             {
-                UserId = updatedBy,
-                Entity = "OutboundOrderIssue",
-                EntityId = outboundOrderId,
-                Action = action,
-                Timestamp = now
-            });
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    UserId = updatedBy,
+                    Entity = "OutboundOrderIssue",
+                    EntityId = outboundOrderId,
+                    Action = action,
+                    Timestamp = now
+                });
 
-            await _context.SaveChangesAsync().ConfigureAwait(false);
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                await tx.RollbackAsync().ConfigureAwait(false);
+                throw;
+            }
 
             return new IInventoryOutboundRepository.OutboundIssueDto(
                 issueId,
@@ -1533,17 +1544,6 @@ namespace Storix_BE.Repository.Implementation
 
                 order.Status = "Completed";
 
-                await _context.SaveChangesAsync().ConfigureAwait(false);
-                await tx.CommitAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-                await tx.RollbackAsync().ConfigureAwait(false);
-                throw;
-            }
-
-            try
-            {
                 _context.OutboundOrderStatusHistories.Add(new OutboundOrderStatusHistory
                 {
                     OutboundOrderId = order.Id,
@@ -1554,10 +1554,12 @@ namespace Storix_BE.Repository.Implementation
                 });
 
                 await _context.SaveChangesAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogWarning(ex, "Failed to write outbound completion history. OutboundOrderId={OutboundOrderId}", order.Id);
+                await tx.RollbackAsync().ConfigureAwait(false);
+                throw;
             }
 
             return order;
