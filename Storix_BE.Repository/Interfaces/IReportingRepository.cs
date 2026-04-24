@@ -9,6 +9,10 @@ namespace Storix_BE.Repository.Interfaces
     {
         Task<Report> CreateReportAsync(Report report);
         Task UpdateReportAsync(Report report);
+        Task<bool> WarehouseBelongsToCompanyAsync(int companyId, int warehouseId);
+        Task<bool> ProductBelongsToCompanyAsync(int companyId, int productId);
+        Task<bool> InventoryCountTicketBelongsToCompanyAsync(int companyId, int inventoryCountTicketId);
+        Task<bool> InventoryCountTicketBelongsToWarehouseAsync(int inventoryCountTicketId, int warehouseId);
 
         Task<Report?> GetReportByIdAsync(int companyId, int reportId);
 

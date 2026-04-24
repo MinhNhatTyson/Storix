@@ -11,8 +11,8 @@ namespace Storix_BE.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // Reporting is company-scoped. Only Company Admin (role 2) can create/view/export reports.
-    [Authorize(Roles = "2")]
+    // Reporting is company-scoped. Company Admin (role 2) and Manager (role 3) can create/view/export reports.
+    [Authorize(Roles = "2,3")]
     public class ReportsController : ControllerBase
     {
         private readonly IReportingService _reportingService;
@@ -32,6 +32,9 @@ namespace Storix_BE.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateReport([FromBody] CreateReportApiRequest request)
         {
+            if (request == null)
+                return BadRequest(new { message = "Request body is required." });
+
             var (error, effectiveCompanyId, caller) = await ResolveCallerAsync(request.CompanyId);
             if (error != null) return error;
 
@@ -49,18 +52,22 @@ namespace Storix_BE.API.Controllers
             }
             catch (ArgumentException ex)
             {
+                LogCreateReportFailure(ex, request, effectiveCompanyId, caller?.Id, expectedClientError: true);
                 return BadRequest(new { message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
+                LogCreateReportFailure(ex, request, effectiveCompanyId, caller?.Id, expectedClientError: true);
                 return BadRequest(new { message = ex.Message });
             }
             catch (DbUpdateException ex)
             {
+                LogCreateReportFailure(ex, request, effectiveCompanyId, caller?.Id, expectedClientError: false);
                 return HandleDatabaseException(ex, "create report");
             }
             catch (Exception ex)
             {
+                LogCreateReportFailure(ex, request, effectiveCompanyId, caller?.Id, expectedClientError: false);
                 return HandleUnexpectedException(ex, "create report");
             }
         }
@@ -154,7 +161,7 @@ namespace Storix_BE.API.Controllers
 
 
         /// <summary>
-        /// Resolves the authenticated caller and effective companyId for Company Admin scope.
+        /// Resolves the authenticated caller and effective companyId for company-scoped report access.
         /// Returns (errorResult, effectiveCompanyId, caller). If errorResult is non-null, return it immediately.
         /// </summary>
         private async Task<(IActionResult? error, int effectiveCompanyId, Storix_BE.Domain.Models.User? caller)> ResolveCallerAsync(int? requestedCompanyId)
@@ -168,7 +175,7 @@ namespace Storix_BE.API.Controllers
                 return (Unauthorized(), 0, null);
 
             if (requestedCompanyId.HasValue && requestedCompanyId.Value > 0 && caller.CompanyId != requestedCompanyId.Value)
-                return (StatusCode(403, new { message = "Cross-company access denied. Company Administrator can only access its own company." }), 0, null);
+                return (StatusCode(403, new { message = "Cross-company access denied. You can only access your own company." }), 0, null);
 
             if (!caller.CompanyId.HasValue || caller.CompanyId.Value <= 0)
                 return (Unauthorized(new { message = "Missing companyId in token/user context." }), 0, null);
@@ -203,6 +210,49 @@ namespace Storix_BE.API.Controllers
                 detail = GetInnermostMessage(ex),
                 traceId
             });
+        }
+
+        private void LogCreateReportFailure(
+            Exception ex,
+            CreateReportApiRequest request,
+            int effectiveCompanyId,
+            int? callerUserId,
+            bool expectedClientError)
+        {
+            var traceId = HttpContext.TraceIdentifier;
+            if (expectedClientError)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Create report validation failed. TraceId={TraceId}, EffectiveCompanyId={EffectiveCompanyId}, CallerUserId={CallerUserId}, ReportType={ReportType}, WarehouseId={WarehouseId}, ProductId={ProductId}, InventoryCountTicketId={InventoryCountTicketId}, TimeFrom={TimeFrom}, TimeTo={TimeTo}, ExceptionType={ExceptionType}, InnerExceptionType={InnerExceptionType}",
+                    traceId,
+                    effectiveCompanyId,
+                    callerUserId,
+                    request.ReportType,
+                    request.WarehouseId,
+                    request.ProductId,
+                    request.InventoryCountTicketId,
+                    request.TimeFrom,
+                    request.TimeTo,
+                    ex.GetType().FullName,
+                    ex.InnerException?.GetType().FullName);
+                return;
+            }
+
+            _logger.LogError(
+                ex,
+                "Create report failed. TraceId={TraceId}, EffectiveCompanyId={EffectiveCompanyId}, CallerUserId={CallerUserId}, ReportType={ReportType}, WarehouseId={WarehouseId}, ProductId={ProductId}, InventoryCountTicketId={InventoryCountTicketId}, TimeFrom={TimeFrom}, TimeTo={TimeTo}, ExceptionType={ExceptionType}, InnerExceptionType={InnerExceptionType}",
+                traceId,
+                effectiveCompanyId,
+                callerUserId,
+                request.ReportType,
+                request.WarehouseId,
+                request.ProductId,
+                request.InventoryCountTicketId,
+                request.TimeFrom,
+                request.TimeTo,
+                ex.GetType().FullName,
+                ex.InnerException?.GetType().FullName);
         }
 
         private static string GetInnermostMessage(Exception ex)

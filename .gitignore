@@ -57,3 +57,6 @@ _UpgradeLog*.XML
 .DS_Store
 Thumbs.db
 
+## Local DB tooling
+Tools/psql-client/
+

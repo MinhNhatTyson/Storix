@@ -20,6 +20,17 @@ namespace Storix_BE.Service.Implementation
 {
     public class ReportingService : IReportingService
     {
+        private static readonly HashSet<string> SupportedReportTypes = new(StringComparer.Ordinal)
+        {
+            ReportTypes.OutboundKpiBasic,
+            ReportTypes.InventoryTracking,
+            ReportTypes.InboundKpiBasic,
+            ReportTypes.InventorySnapshot,
+            ReportTypes.InventoryLedger,
+            ReportTypes.InventoryInOutBalance,
+            ReportTypes.StocktakeVariance
+        };
+
         private readonly IReportingRepository _repo;
         private readonly Cloudinary _cloudinary;
         private readonly ILogger<ReportingService> _logger;
@@ -38,6 +49,8 @@ namespace Storix_BE.Service.Implementation
             if (payload == null) throw new ArgumentNullException(nameof(payload));
             if (string.IsNullOrWhiteSpace(payload.ReportType)) throw new ArgumentException("ReportType is required.", nameof(payload.ReportType));
             if (payload.TimeTo < payload.TimeFrom) throw new ArgumentException("TimeTo must be >= TimeFrom.");
+            await ValidateCreatePayloadScopeAsync(companyId, payload).ConfigureAwait(false);
+            var normalizedReportType = payload.ReportType.Trim();
 
             var createdAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
@@ -47,7 +60,7 @@ namespace Storix_BE.Service.Implementation
             {
                 CompanyId = companyId,
                 CreatedByUserId = createdByUserId,
-                ReportType = payload.ReportType,
+                ReportType = normalizedReportType,
                 WarehouseId = payload.WarehouseId,
                 ProductId = payload.ProductId,
                 InventoryCountTicketId = payload.InventoryCountTicketId,
@@ -57,7 +70,7 @@ namespace Storix_BE.Service.Implementation
                 CreatedAt = createdAt,
                 ParametersJson = JsonSerializer.Serialize(new
                 {
-                    reportType = payload.ReportType,
+                    reportType = normalizedReportType,
                     warehouseId = payload.WarehouseId,
                     productId = payload.ProductId,
                     inventoryCountTicketId = payload.InventoryCountTicketId,
@@ -70,7 +83,7 @@ namespace Storix_BE.Service.Implementation
                 "Creating report draft. CompanyId={CompanyId}, UserId={UserId}, ReportType={ReportType}, WarehouseId={WarehouseId}, ProductId={ProductId}, InventoryCountTicketId={InventoryCountTicketId}, TimeFrom={TimeFrom}, TimeTo={TimeTo}",
                 companyId,
                 createdByUserId,
-                payload.ReportType,
+                normalizedReportType,
                 payload.WarehouseId,
                 payload.ProductId,
                 payload.InventoryCountTicketId,
@@ -88,7 +101,7 @@ namespace Storix_BE.Service.Implementation
                     "Failed to persist report draft. CompanyId={CompanyId}, UserId={UserId}, ReportType={ReportType}",
                     companyId,
                     createdByUserId,
-                    payload.ReportType);
+                    normalizedReportType);
                 throw;
             }
 
@@ -100,7 +113,7 @@ namespace Storix_BE.Service.Implementation
                     WriteIndented = false
                 };
 
-                if (string.Equals(payload.ReportType, ReportTypes.OutboundKpiBasic, StringComparison.Ordinal))
+                if (string.Equals(normalizedReportType, ReportTypes.OutboundKpiBasic, StringComparison.Ordinal))
                 {
                     var kpi = await _repo.GetOutboundKpiBasicAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -113,7 +126,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(kpi, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.OutboundKpiBasic;
                 }
-                else if (string.Equals(payload.ReportType, ReportTypes.InventoryTracking, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.InventoryTracking, StringComparison.Ordinal))
                 {
                     var inv = await _repo.GetInventoryTrackingAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -128,7 +141,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(inv, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.InventoryTracking;
                 }
-                else if (string.Equals(payload.ReportType, ReportTypes.InboundKpiBasic, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.InboundKpiBasic, StringComparison.Ordinal))
                 {
                     var inbound = await _repo.GetInboundKpiBasicAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -141,7 +154,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(inbound, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.InboundKpiBasic;
                 }
-                else if (string.Equals(payload.ReportType, ReportTypes.InventorySnapshot, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.InventorySnapshot, StringComparison.Ordinal))
                 {
                     var snapshot = await _repo.GetInventorySnapshotAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -155,7 +168,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(snapshot, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.InventorySnapshot;
                 }
-                else if (string.Equals(payload.ReportType, ReportTypes.InventoryLedger, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.InventoryLedger, StringComparison.Ordinal))
                 {
                     var ledger = await _repo.GetInventoryLedgerAsync(companyId, payload.WarehouseId, payload.ProductId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -169,7 +182,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(ledger, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.InventoryLedger;
                 }
-                else if (string.Equals(payload.ReportType, ReportTypes.InventoryInOutBalance, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.InventoryInOutBalance, StringComparison.Ordinal))
                 {
                     var inOut = await _repo.GetInventoryInOutBalanceAsync(companyId, payload.WarehouseId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -185,7 +198,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(inOut, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.InventoryInOutBalance;
                 }
-                else if (string.Equals(payload.ReportType, ReportTypes.StocktakeVariance, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.StocktakeVariance, StringComparison.Ordinal))
                 {
                     var stocktake = await _repo.GetStocktakeVarianceAsync(companyId, payload.WarehouseId, payload.InventoryCountTicketId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -201,7 +214,7 @@ namespace Storix_BE.Service.Implementation
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Unsupported report type '{payload.ReportType}'.");
+                    throw new InvalidOperationException($"Unsupported report type '{normalizedReportType}'.");
                 }
 
                 report.Status = ReportStatus.Succeeded;
@@ -235,10 +248,12 @@ namespace Storix_BE.Service.Implementation
                 report.ErrorMessage = ex.Message;
                 _logger.LogError(
                     ex,
-                    "Report generation failed. ReportId={ReportId}, ReportType={ReportType}, CompanyId={CompanyId}",
+                    "Report generation failed. ReportId={ReportId}, ReportType={ReportType}, CompanyId={CompanyId}, ExceptionType={ExceptionType}, InnerExceptionType={InnerExceptionType}",
                     report.Id,
                     report.ReportType,
-                    companyId);
+                    companyId,
+                    ex.GetType().FullName,
+                    ex.InnerException?.GetType().FullName);
 
                 try
                 {
@@ -1005,6 +1020,72 @@ namespace Storix_BE.Service.Implementation
                 r.CreatedAt,
                 r.CompletedAt,
                 r.ErrorMessage)).ToList();
+        }
+
+        private async Task ValidateCreatePayloadScopeAsync(int companyId, CreateReportRequest payload)
+        {
+            var reportType = payload.ReportType.Trim();
+            if (!SupportedReportTypes.Contains(reportType))
+            {
+                throw new ArgumentException($"Unsupported report type '{reportType}'.", nameof(payload.ReportType));
+            }
+
+            if (payload.WarehouseId.HasValue)
+            {
+                if (payload.WarehouseId.Value <= 0)
+                    throw new ArgumentException("WarehouseId must be greater than 0 when provided.", nameof(payload.WarehouseId));
+
+                var warehouseExists = await _repo
+                    .WarehouseBelongsToCompanyAsync(companyId, payload.WarehouseId.Value)
+                    .ConfigureAwait(false);
+                if (!warehouseExists)
+                    throw new InvalidOperationException("Warehouse does not exist or does not belong to this company.");
+            }
+
+            if (payload.ProductId.HasValue)
+            {
+                if (payload.ProductId.Value <= 0)
+                    throw new ArgumentException("ProductId must be greater than 0 when provided.", nameof(payload.ProductId));
+
+                var productExists = await _repo
+                    .ProductBelongsToCompanyAsync(companyId, payload.ProductId.Value)
+                    .ConfigureAwait(false);
+                if (!productExists)
+                    throw new InvalidOperationException("Product does not exist or does not belong to this company.");
+            }
+
+            if (payload.InventoryCountTicketId.HasValue)
+            {
+                if (payload.InventoryCountTicketId.Value <= 0)
+                {
+                    throw new ArgumentException(
+                        "InventoryCountTicketId must be greater than 0 when provided.",
+                        nameof(payload.InventoryCountTicketId));
+                }
+
+                var ticketExists = await _repo
+                    .InventoryCountTicketBelongsToCompanyAsync(companyId, payload.InventoryCountTicketId.Value)
+                    .ConfigureAwait(false);
+                if (!ticketExists)
+                {
+                    throw new InvalidOperationException(
+                        "Inventory count ticket does not exist or does not belong to this company.");
+                }
+
+                if (payload.WarehouseId.HasValue)
+                {
+                    var ticketMatchesWarehouse = await _repo
+                        .InventoryCountTicketBelongsToWarehouseAsync(
+                            payload.InventoryCountTicketId.Value,
+                            payload.WarehouseId.Value)
+                        .ConfigureAwait(false);
+                    if (!ticketMatchesWarehouse)
+                    {
+                        throw new InvalidOperationException(
+                            "Inventory count ticket does not belong to the selected warehouse.");
+                    }
+                }
+            }
         }
 
     }

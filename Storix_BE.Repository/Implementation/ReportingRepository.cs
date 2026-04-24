@@ -35,6 +35,37 @@ namespace Storix_BE.Repository.Implementation
             await _context.SaveChangesAsync().ConfigureAwait(false);
         }
 
+        public Task<bool> WarehouseBelongsToCompanyAsync(int companyId, int warehouseId)
+        {
+            return _context.Warehouses
+                .AsNoTracking()
+                .AnyAsync(w => w.Id == warehouseId && w.CompanyId == companyId);
+        }
+
+        public Task<bool> ProductBelongsToCompanyAsync(int companyId, int productId)
+        {
+            return _context.Products
+                .AsNoTracking()
+                .AnyAsync(p => p.Id == productId && p.CompanyId == companyId);
+        }
+
+        public Task<bool> InventoryCountTicketBelongsToCompanyAsync(int companyId, int inventoryCountTicketId)
+        {
+            return _context.InventoryCountsTickets
+                .AsNoTracking()
+                .AnyAsync(t =>
+                    t.Id == inventoryCountTicketId &&
+                    t.Warehouse != null &&
+                    t.Warehouse.CompanyId == companyId);
+        }
+
+        public Task<bool> InventoryCountTicketBelongsToWarehouseAsync(int inventoryCountTicketId, int warehouseId)
+        {
+            return _context.InventoryCountsTickets
+                .AsNoTracking()
+                .AnyAsync(t => t.Id == inventoryCountTicketId && t.WarehouseId == warehouseId);
+        }
+
         public async Task<Report?> GetReportByIdAsync(int companyId, int reportId)
         {
             return await _context.Reports
