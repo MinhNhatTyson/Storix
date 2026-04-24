@@ -77,7 +77,20 @@ namespace Storix_BE.Service.Implementation
                 payload.TimeFrom,
                 payload.TimeTo);
 
-            report = await _repo.CreateReportAsync(report).ConfigureAwait(false);
+            try
+            {
+                report = await _repo.CreateReportAsync(report).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to persist report draft. CompanyId={CompanyId}, UserId={UserId}, ReportType={ReportType}",
+                    companyId,
+                    createdByUserId,
+                    payload.ReportType);
+                throw;
+            }
 
             try
             {
@@ -226,7 +239,20 @@ namespace Storix_BE.Service.Implementation
                     report.Id,
                     report.ReportType,
                     companyId);
-                await _repo.UpdateReportAsync(report).ConfigureAwait(false);
+
+                try
+                {
+                    await _repo.UpdateReportAsync(report).ConfigureAwait(false);
+                }
+                catch (Exception updateEx)
+                {
+                    _logger.LogError(
+                        updateEx,
+                        "Failed to persist report failure state. ReportId={ReportId}, OriginalError={OriginalError}",
+                        report.Id,
+                        ex.Message);
+                }
+
                 throw;
             }
         }

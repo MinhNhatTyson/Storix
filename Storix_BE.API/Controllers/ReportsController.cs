@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Storix_BE.Service.Interfaces;
 using System;
 using System.Security.Claims;
@@ -15,11 +17,16 @@ namespace Storix_BE.API.Controllers
     {
         private readonly IReportingService _reportingService;
         private readonly IUserService _userService;
+        private readonly ILogger<ReportsController> _logger;
 
-        public ReportsController(IReportingService reportingService, IUserService userService)
+        public ReportsController(
+            IReportingService reportingService,
+            IUserService userService,
+            ILogger<ReportsController> logger)
         {
             _reportingService = reportingService;
             _userService = userService;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -48,9 +55,13 @@ namespace Storix_BE.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (DbUpdateException ex)
+            {
+                return HandleDatabaseException(ex, "create report");
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return HandleUnexpectedException(ex, "create report");
             }
         }
 
@@ -70,9 +81,13 @@ namespace Storix_BE.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (DbUpdateException ex)
+            {
+                return HandleDatabaseException(ex, "load report");
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return HandleUnexpectedException(ex, "load report");
             }
         }
 
@@ -98,9 +113,13 @@ namespace Storix_BE.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (DbUpdateException ex)
+            {
+                return HandleDatabaseException(ex, "list reports");
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return HandleUnexpectedException(ex, "list reports");
             }
         }
 
@@ -123,9 +142,13 @@ namespace Storix_BE.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (DbUpdateException ex)
+            {
+                return HandleDatabaseException(ex, "export report PDF");
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return HandleUnexpectedException(ex, "export report PDF");
             }
         }
 
@@ -151,6 +174,46 @@ namespace Storix_BE.API.Controllers
                 return (Unauthorized(new { message = "Missing companyId in token/user context." }), 0, null);
 
             return (null, caller.CompanyId.Value, caller);
+        }
+
+        private IActionResult HandleDatabaseException(DbUpdateException ex, string action)
+        {
+            var traceId = HttpContext.TraceIdentifier;
+            var detail = GetInnermostMessage(ex);
+
+            _logger.LogError(ex, "Database error while attempting to {Action}. TraceId={TraceId}", action, traceId);
+
+            return StatusCode(500, new
+            {
+                message = $"Database error while attempting to {action}.",
+                detail,
+                traceId
+            });
+        }
+
+        private IActionResult HandleUnexpectedException(Exception ex, string action)
+        {
+            var traceId = HttpContext.TraceIdentifier;
+
+            _logger.LogError(ex, "Unexpected error while attempting to {Action}. TraceId={TraceId}", action, traceId);
+
+            return StatusCode(500, new
+            {
+                message = $"Unexpected error while attempting to {action}.",
+                detail = GetInnermostMessage(ex),
+                traceId
+            });
+        }
+
+        private static string GetInnermostMessage(Exception ex)
+        {
+            var current = ex;
+            while (current.InnerException != null)
+            {
+                current = current.InnerException;
+            }
+
+            return current.Message;
         }
     }
 
