@@ -695,5 +695,43 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [HttpGet("~/api/company-warehouses/{companyId:int}/warehouses/{warehouseId:int}/zones")]
+        [Authorize(Roles = "2,3,4")]
+        public async Task<IActionResult> GetWarehouseZoneIds(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) return BadRequest(new { message = "CompanyId is required." });
+            if (warehouseId <= 0) return BadRequest(new { message = "WarehouseId is required." });
+
+            var roleId = GetRoleIdFromToken();
+            var email = GetEmailFromToken();
+            if (roleId == null || string.IsNullOrEmpty(email))
+                return Unauthorized();
+
+            try
+            {
+                var caller = await _userService.GetByEmailAsync(email);
+                if (caller?.CompanyId == null) return Unauthorized();
+                if (caller.CompanyId.Value != companyId) return Forbid();
+
+                var zoneIds = await _assignmentService.GetZoneIdsByWarehouseAsync(companyId, warehouseId);
+                return Ok(zoneIds);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (BusinessRuleException ex)
+            {
+                return BadRequest(new { code = ex.Code, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }
