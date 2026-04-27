@@ -5,8 +5,9 @@ using Storix_BE.Domain.Exception;
 using Storix_BE.Domain.Models;
 using Storix_BE.Service.Implementation;
 using Storix_BE.Service.Interfaces;
+using System.Collections.Generic;
 using System.Linq;
-using AssignWarehouseRequest = Storix_BE.Service.Interfaces.AssignWarehouseRequest;
+using AssignWarehousesRequest = Storix_BE.Service.Interfaces.AssignWarehousesRequest;
 using CreateWarehouseRequest = Storix_BE.Service.Interfaces.CreateWarehouseRequest;
 
 namespace Storix_BE.API.Controllers
@@ -213,12 +214,18 @@ namespace Storix_BE.API.Controllers
         /// Assign a warehouse to a Manager/Staff. Company Administrator only.
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> AssignWarehouse(int companyId, [FromBody] AssignWarehouseRequest request)
+        public async Task<IActionResult> AssignWarehouse(int companyId, [FromBody] AssignWarehousesRequest request)
         {
             if (companyId <= 0)
                 return BadRequest(new { message = "CompanyId is required." });
-            if (request == null || request.UserId <= 0 || request.WarehouseId <= 0)
-                return BadRequest(new { message = "UserId and WarehouseId are required." });
+            if (request == null || request.WarehouseId <= 0)
+                return BadRequest(new { message = "WarehouseId is required." });
+
+            var requestedUserIds = new List<int>();
+            if (request.UserIds != null) requestedUserIds.AddRange(request.UserIds);
+            if (request.UserId.HasValue) requestedUserIds.Add(request.UserId.Value);
+            if (!requestedUserIds.Any(id => id > 0))
+                return BadRequest(new { message = "At least one valid userId is required." });
             var roleId = GetRoleIdFromToken();
             var email = GetEmailFromToken();
             if (roleId == null || string.IsNullOrEmpty(email))
@@ -231,8 +238,8 @@ namespace Storix_BE.API.Controllers
                     return Unauthorized();
                 if (caller.CompanyId.Value != companyId)
                     return Forbid();
-                var assignment = await _assignmentService.AssignWarehouseAsync(companyId, roleId.Value, request);
-                return Ok(MapAssignment(assignment));
+                var assignments = await _assignmentService.AssignWarehousesAsync(companyId, roleId.Value, request);
+                return Ok(assignments.Select(MapAssignment));
             }
             catch (UnauthorizedAccessException)
             {

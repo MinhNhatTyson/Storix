@@ -25,7 +25,7 @@ namespace Storix_BE.Service.Implementation
             ReportTypes.InventorySnapshot,
             ReportTypes.InventoryLedger,
             ReportTypes.InventoryInOutBalance,
-            ReportTypes.StocktakeVariance
+            ReportTypes.InventoryTracking
         };
 
         private readonly IReportingRepository _repo;
@@ -154,7 +154,7 @@ namespace Storix_BE.Service.Implementation
                     report.DataJson = JsonSerializer.Serialize(inOut, jsonOptions);
                     report.SchemaVersion = ReportSchemaVersions.InventoryInOutBalance;
                 }
-                else if (string.Equals(normalizedReportType, ReportTypes.StocktakeVariance, StringComparison.Ordinal))
+                else if (string.Equals(normalizedReportType, ReportTypes.InventoryTracking, StringComparison.Ordinal))
                 {
                     var stocktake = await _repo.GetStocktakeVarianceAsync(companyId, payload.WarehouseId, payload.InventoryCountTicketId, payload.TimeFrom, payload.TimeTo)
                         .ConfigureAwait(false);
@@ -166,7 +166,7 @@ namespace Storix_BE.Service.Implementation
                         totalVarianceValue = stocktake.TotalVarianceValue
                     }, jsonOptions);
                     report.DataJson = JsonSerializer.Serialize(stocktake, jsonOptions);
-                    report.SchemaVersion = ReportSchemaVersions.StocktakeVariance;
+                    report.SchemaVersion = ReportSchemaVersions.InventoryTracking;
                 }
                 else
                 {
@@ -298,7 +298,7 @@ namespace Storix_BE.Service.Implementation
                     ?? throw new InvalidOperationException("Failed to deserialize report data.");
                 pdfBytes = GenerateInventoryInOutBalancePdf(report, data);
             }
-            else if (string.Equals(report.ReportType, ReportTypes.StocktakeVariance, StringComparison.Ordinal))
+            else if (string.Equals(report.ReportType, ReportTypes.InventoryTracking, StringComparison.Ordinal))
             {
                 var data = JsonSerializer.Deserialize<StocktakeVarianceReportData>(report.DataJson, jsonOptions)
                     ?? throw new InvalidOperationException("Failed to deserialize report data.");

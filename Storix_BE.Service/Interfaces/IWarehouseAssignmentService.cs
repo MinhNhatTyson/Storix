@@ -9,7 +9,7 @@ namespace Storix_BE.Service.Interfaces
         Task<List<Warehouse>> GetWarehousesByCompanyAsync(int companyId, int callerRoleId);
         Task<List<WarehouseAssignment>> GetAssignmentsByCompanyAsync(int companyId, int callerRoleId);
         Task<List<WarehouseAssignment>> GetAssignmentsByWarehouseAsync(int companyId, int callerRoleId, int warehouseId);
-        Task<WarehouseAssignment> AssignWarehouseAsync(int companyId, int callerRoleId, AssignWarehouseRequest request);
+        Task<List<WarehouseAssignment>> AssignWarehousesAsync(int companyId, int callerRoleId, AssignWarehousesRequest request);
         Task<bool> UnassignWarehouseAsync(int companyId, int callerRoleId, int userId, int warehouseId);
         Task<int> CountAssignmentsByUserAsync(int userId);
         Task<int> UpdateRoleInAssignmentsAsync(int userId, string roleInWarehouse);
@@ -21,7 +21,7 @@ namespace Storix_BE.Service.Interfaces
         Task<List<int>> GetZoneIdsByWarehouseAsync(int companyId, int warehouseId);
     }
 
-    public sealed record AssignWarehouseRequest(int UserId, int WarehouseId);
+    public sealed record AssignWarehousesRequest(int WarehouseId, IEnumerable<int>? UserIds, int? UserId);
     public sealed record CreateWarehouseRequest(
         double? Width,
         double? Height,

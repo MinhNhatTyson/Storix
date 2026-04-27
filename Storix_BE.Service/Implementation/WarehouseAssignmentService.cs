@@ -5,6 +5,7 @@ using Storix_BE.Service.Interfaces;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Storix_BE.Service.Implementation
@@ -101,24 +102,22 @@ namespace Storix_BE.Service.Implementation
             return result;
         }
 
-        public async Task<WarehouseAssignment> AssignWarehouseAsync(int companyId, int callerRoleId, AssignWarehouseRequest request)
+        public async Task<List<WarehouseAssignment>> AssignWarehousesAsync(int companyId, int callerRoleId, AssignWarehousesRequest request)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
-
-            var user = await _userRepository.GetUserByIdWithRoleAsync(request.UserId);
-            if (user == null)
-                throw new InvalidOperationException("User not found.");
-            if (user.CompanyId != companyId)
-                throw new BusinessRuleException("BR-WH-08", "Cross-company assignment is not allowed.");
-
-            var userRole = await _userRepository.GetRoleByIdAsync(user.RoleId ?? 0);
-            if (userRole?.Name == "Super Admin")
-                throw new InvalidOperationException("Cannot assign warehouse to Super Admin.");
-            if (userRole?.Name == "Company Administrator")
-                throw new InvalidOperationException("Cannot assign warehouse to Company Administrator.");
-            if (userRole?.Name != "Manager" && userRole?.Name != "Staff")
-                throw new BusinessRuleException("BR-WH-03", "Role not eligible for warehouse assignment.");
-
+            if (request == null) throw new InvalidOperationException("Request is required.");
+            if (request.WarehouseId <= 0) throw new InvalidOperationException("WarehouseId is required.");
+            var userIds = new List<int>();
+            if (request.UserIds != null)
+                userIds.AddRange(request.UserIds);
+            if (request.UserId.HasValue)
+                userIds.Add(request.UserId.Value);
+            var normalizedUserIds = userIds
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+            if (normalizedUserIds.Count == 0)
+                throw new InvalidOperationException("At least one valid userId is required.");
             var warehouse = await _assignmentRepository.GetWarehouseByIdAsync(request.WarehouseId);
             if (warehouse == null)
                 throw new BusinessRuleException("BR-WH-01", "Warehouse not found.");
@@ -126,31 +125,43 @@ namespace Storix_BE.Service.Implementation
                 throw new BusinessRuleException("BR-WH-08", "Cross-company assignment is not allowed.");
             if (IsInactiveStatus(warehouse.Status))
                 throw new BusinessRuleException("BR-WH-02", "Warehouse is inactive.");
-
-            var existingWarehouse = await _assignmentRepository.GetAssignmentAsync(request.UserId, request.WarehouseId);
-            if (existingWarehouse != null)
-                throw new BusinessRuleException("BR-WH-04", "User already assigned to this warehouse.");
-
             var maxUsers = GetMaxUsersPerWarehouse();
             if (maxUsers.HasValue)
             {
                 var currentCount = await _assignmentRepository.CountAssignmentsByWarehouseIdAsync(request.WarehouseId);
-                if (currentCount >= maxUsers.Value)
+                if (currentCount + normalizedUserIds.Count > maxUsers.Value)
                     throw new BusinessRuleException("BR-WH-05", "Warehouse capacity policy exceeded.");
             }
-
-            var assignment = new WarehouseAssignment
+            var createdAssignments = new List<WarehouseAssignment>();
+            foreach (var userId in normalizedUserIds)
             {
-                UserId = request.UserId,
-                WarehouseId = request.WarehouseId,
-                RoleInWarehouse = userRole?.Name,
-                AssignedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-            };
-
-            await _assignmentRepository.AddAssignmentAsync(assignment);
-            return assignment;
+                var user = await _userRepository.GetUserByIdWithRoleAsync(userId);
+                if (user == null)
+                    throw new InvalidOperationException($"User {userId} not found.");
+                if (user.CompanyId != companyId)
+                    throw new BusinessRuleException("BR-WH-08", "Cross-company assignment is not allowed.");
+                var userRole = await _userRepository.GetRoleByIdAsync(user.RoleId ?? 0);
+                if (userRole?.Name == "Super Admin")
+                    throw new InvalidOperationException("Cannot assign warehouse to Super Admin.");
+                if (userRole?.Name == "Company Administrator")
+                    throw new InvalidOperationException("Cannot assign warehouse to Company Administrator.");
+                if (userRole?.Name != "Manager" && userRole?.Name != "Staff")
+                    throw new BusinessRuleException("BR-WH-03", "Role not eligible for warehouse assignment.");
+                var existingWarehouse = await _assignmentRepository.GetAssignmentAsync(userId, request.WarehouseId);
+                if (existingWarehouse != null)
+                    throw new BusinessRuleException("BR-WH-04", $"User {userId} already assigned to this warehouse.");
+                var assignment = new WarehouseAssignment
+                {
+                    UserId = userId,
+                    WarehouseId = request.WarehouseId,
+                    RoleInWarehouse = userRole?.Name,
+                    AssignedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+                };
+                await _assignmentRepository.AddAssignmentAsync(assignment);
+                createdAssignments.Add(assignment);
+            }
+            return createdAssignments;
         }
-
         public async Task<bool> UnassignWarehouseAsync(int companyId, int callerRoleId, int userId, int warehouseId)
         {
             if (companyId <= 0) throw new InvalidOperationException("Invalid company id.");
@@ -554,3 +565,4 @@ namespace Storix_BE.Service.Implementation
         }
     }
 }
+

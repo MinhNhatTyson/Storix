@@ -26,7 +26,7 @@ namespace Storix_BE.Service.Interfaces
         public const string InventorySnapshot = "InventorySnapshot";
         public const string InventoryLedger = "InventoryLedger";
         public const string InventoryInOutBalance = "InventoryInOutBalance";
-        public const string StocktakeVariance = "StocktakeVariance";
+        public const string InventoryTracking = "InventoryTracking";
     }
 
     public static class ReportStatus
@@ -41,7 +41,7 @@ namespace Storix_BE.Service.Interfaces
         public const string InventorySnapshot = "1";
         public const string InventoryLedger = "1";
         public const string InventoryInOutBalance = "1";
-        public const string StocktakeVariance = "1";
+        public const string InventoryTracking = "1";
     }
 
     public sealed record CreateReportRequest(
