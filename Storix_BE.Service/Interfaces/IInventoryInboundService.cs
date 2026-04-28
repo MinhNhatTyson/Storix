@@ -38,12 +38,26 @@ namespace Storix_BE.Service.Interfaces
 
         Task AddStorageRecommendationsAsync(AddStorageRecommendationsRequest request);
         Task<List<InboundItemRecommendationsDto>> GetStorageRecommendationsByInboundOrderIdAsync(int inboundOrderId);
+        Task<InboundOrder> AssignStaffToInboundOrderAsync(int companyId, int inboundOrderId, int managerUserId, int staffUserId);
     }
     public sealed record SupplierDto(int Id, string? Name, string? Phone, string? Email);
 
     public sealed record WarehouseDto(int Id, string? Name, string? Address, string? Description, int? Width, int? Height, int? Length);
 
     public sealed record UserDto(int Id, string? FullName, string? Email, string? Phone);
+    public sealed record InboundOrderItemPlacementDto(
+        int BatchId,
+        int BinId,
+        string? BinCode,
+        string? BinIdCode,
+        int? ShelfId,
+        string? ShelfCode,
+        int? ZoneId,
+        string? ZoneCode,
+        int Quantity,
+        DateTime? InboundDate,
+        decimal? BatchUnitCost);
+
     public sealed record InboundOrderItemDto(
         int Id,
         int? ProductId,
@@ -53,7 +67,8 @@ namespace Storix_BE.Service.Interfaces
         double? LineDiscount,
         int? ExpectedQuantity,
         string? Description,
-        string? imageURL);
+        string? imageURL,
+        IEnumerable<InboundOrderItemPlacementDto>? Placements);
     public sealed record InboundRequestDto(
         int Id,
         int? WarehouseId,
