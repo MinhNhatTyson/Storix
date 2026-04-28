@@ -37,5 +37,6 @@ namespace Storix_BE.Repository.Interfaces
 
         Task AddStorageRecommendationsAsync(IEnumerable<StorageRecommendationCreateDto> requests);
         Task<List<InboundOrderItem>> GetInboundOrderItemsWithRecommendationsAsync(int inboundOrderId);
+        Task<InboundOrder> AssignStaffToInboundOrderAsync(int companyId, int inboundOrderId, int managerUserId, int staffUserId);
     }
 }

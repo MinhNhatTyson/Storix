@@ -156,30 +156,21 @@ namespace Storix_BE.Repository.Implementation
                 WarehouseId = inboundRequest.WarehouseId,
                 SupplierId = inboundRequest.SupplierId,
                 CreatedBy = createdBy,
-                StaffId = staffId, 
+                StaffId = staffId,
                 Status = "Waiting for payment",
                 InboundRequestId = inboundRequest.Id,
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
                 ReferenceCode = $"INB-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}"
             };
 
-            // Copy items: ExpectedQuantity from request items. Do not link InboundOrderId yet.
             foreach (var reqItem in inboundRequest.InboundOrderItems)
             {
-                var orderItem = new InboundOrderItem
-                {
-                    InboundRequestId = inboundRequest.Id,
-                    Price = reqItem.Price,                    
-                    Discount = reqItem.Discount,
-                    ProductId = reqItem.ProductId,
-                    ExpectedQuantity = reqItem.ExpectedQuantity,
-                    ReceivedQuantity = reqItem.ReceivedQuantity // usually null/0 initially
-                };
-                inboundOrder.InboundOrderItems.Add(orderItem);
+                reqItem.InboundOrder = inboundOrder;
+                inboundOrder.InboundOrderItems.Add(reqItem);
             }
 
             var batchByProduct = new Dictionary<int, InventoryBatch>();
-            // Create skeleton InventoryBatch per product, linked to its InboundOrderItem
+            // Create skeleton InventoryBatch per product, linked to its InboundOrderItem (reuse reqItem instances)
             foreach (var reqItem in inboundRequest.InboundOrderItems)
             {
                 if (!reqItem.ProductId.HasValue) continue;
@@ -646,7 +637,7 @@ namespace Storix_BE.Repository.Implementation
 
             return request;
         }
-        
+
         public async Task<InboundOrder> GetInboundOrderByIdAsync(int companyId, int id)
         {
             var order = await _context.InboundOrders
@@ -656,12 +647,28 @@ namespace Storix_BE.Repository.Implementation
                 .Include(o => o.Supplier)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
-                .Where(o=> o.CreatedByNavigation.CompanyId == companyId)
+                .Where(o => o.CreatedByNavigation.CompanyId == companyId)
                 .FirstOrDefaultAsync(o => o.Id == id)
                 .ConfigureAwait(false);
 
             if (order == null)
                 throw new InvalidOperationException($"InboundOrder with id {id} not found.");
+
+            if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                await _context.Entry(order)
+                    .Collection(o => o.InventoryBatches)
+                    .Query()
+                        .Include(b => b.InboundOrderItem)
+                        .Include(b => b.Product)
+                        .Include(b => b.BatchLocations)
+                            .ThenInclude(bl => bl.Bin)
+                                .ThenInclude(bin => bin.Level)
+                                    .ThenInclude(level => level!.Shelf)
+                                        .ThenInclude(shelf => shelf!.Zone)
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+            }
 
             return order;
         }
@@ -1143,6 +1150,48 @@ namespace Storix_BE.Repository.Implementation
                 .ConfigureAwait(false);
 
             return items;
+        }
+        public async Task<InboundOrder> AssignStaffToInboundOrderAsync(int companyId, int inboundOrderId, int managerUserId, int staffUserId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (inboundOrderId <= 0) throw new ArgumentException("Invalid inboundOrderId.", nameof(inboundOrderId));
+            if (managerUserId <= 0) throw new ArgumentException("Invalid managerUserId.", nameof(managerUserId));
+            if (staffUserId <= 0) throw new ArgumentException("Invalid staffUserId.", nameof(staffUserId));
+
+            var order = await _context.InboundOrders
+                .Include(o => o.Warehouse)
+                .Include(o => o.CreatedByNavigation)
+                .Include(o => o.Staff)
+                .FirstOrDefaultAsync(o => o.Id == inboundOrderId)
+                .ConfigureAwait(false);
+
+            if (order == null)
+                throw new InvalidOperationException($"InboundOrder with id {inboundOrderId} not found.");
+
+            if (order.Warehouse == null || order.Warehouse.CompanyId != companyId)
+                throw new InvalidOperationException("InboundOrder does not belong to the specified company.");
+
+            // Ensure manager is assigned to the same warehouse
+            var managerAssignment = await _context.WarehouseAssignments
+                .AnyAsync(a => a.UserId == managerUserId && a.WarehouseId == order.WarehouseId)
+                .ConfigureAwait(false);
+            if (!managerAssignment)
+                throw new InvalidOperationException("Manager is not assigned to the inbound order warehouse.");
+
+            // Ensure staff is assigned to the same warehouse
+            var staffAssignment = await _context.WarehouseAssignments
+                .AnyAsync(a => a.UserId == staffUserId && a.WarehouseId == order.WarehouseId)
+                .ConfigureAwait(false);
+            if (!staffAssignment)
+                throw new InvalidOperationException("Staff is not assigned to the inbound order warehouse.");
+
+            order.StaffId = staffUserId;
+            await _context.SaveChangesAsync().ConfigureAwait(false);
+
+            // refresh navigation property
+            await _context.Entry(order).Reference(o => o.Staff).LoadAsync().ConfigureAwait(false);
+
+            return order;
         }
     }
 }
