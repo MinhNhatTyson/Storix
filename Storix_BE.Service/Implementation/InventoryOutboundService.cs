@@ -495,9 +495,11 @@ namespace Storix_BE.Service.Implementation
         {
             if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
             if (id <= 0) throw new ArgumentException("Invalid outbound order id.", nameof(id));
-            var order = await _repo.GetOutboundOrderByIdAsync(companyId, id);
+            var order = await _repo.GetOutboundOrderByIdAsync(companyId, id).ConfigureAwait(false);
 
-            var selectedLocations = await GetOutboundOrderItemSelectedLocationsAsync(id).ConfigureAwait(false);
+            var selectedLocations = string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase)
+                ? await GetOutboundOrderItemSelectedLocationsAsync(id).ConfigureAwait(false)
+                : Array.Empty<OutboundOrderItemSelectedLocationDto>();
 
             var availableLocations = order.WarehouseId.HasValue && order.WarehouseId.Value > 0
                 ? await GetOutboundOrderItemAvailableLocationsAsync(id).ConfigureAwait(false)

@@ -27,6 +27,7 @@ namespace Storix_BE.Service.Interfaces
         public const string InventoryLedger = "InventoryLedger";
         public const string InventoryInOutBalance = "InventoryInOutBalance";
         public const string InventoryTracking = "InventoryTracking";
+        public const string ReplenishmentRecommendation = "ReplenishmentRecommendation";
     }
 
     public static class ReportStatus
@@ -42,6 +43,7 @@ namespace Storix_BE.Service.Interfaces
         public const string InventoryLedger = "1";
         public const string InventoryInOutBalance = "1";
         public const string InventoryTracking = "1";
+        public const string ReplenishmentRecommendation = "1";
     }
 
     public sealed record CreateReportRequest(
@@ -50,7 +52,11 @@ namespace Storix_BE.Service.Interfaces
         int? ProductId,
         int? InventoryCountTicketId,
         DateTime TimeFrom,
-        DateTime TimeTo);
+        DateTime TimeTo,
+        int? ForecastHorizonDays = null,
+        int? DefaultLeadTimeDays = null,
+        double? ServiceLevel = null,
+        bool? UseAiExplanation = null);
 
     public sealed record ReportRequestListItemDto(
         int Id,
@@ -89,4 +95,3 @@ namespace Storix_BE.Service.Interfaces
         ReportResultDto? Result,
         ReportPdfArtifactDto? Pdf);
 }
-
