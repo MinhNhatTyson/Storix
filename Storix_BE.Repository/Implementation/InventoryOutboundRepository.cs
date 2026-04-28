@@ -2647,6 +2647,53 @@ namespace Storix_BE.Repository.Implementation
             return await query.ToListAsync().ConfigureAwait(false);
         }
 
+        public async Task<List<IInventoryOutboundRepository.OutboundHistoryProductDto>> GetOutboundHistoryAsync(int companyId, IEnumerable<int> productIds, int? warehouseId, DateTime from, DateTime to)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid companyId.", nameof(companyId));
+            if (productIds == null) throw new ArgumentNullException(nameof(productIds));
+            if (to < from) throw new ArgumentException("DateTo must be >= DateFrom.");
+
+            var productIdList = productIds.Where(x => x > 0).Distinct().ToList();
+            if (!productIdList.Any())
+                throw new ArgumentException("At least one valid productId is required.", nameof(productIds));
+
+            var startDate = from.Date;
+            var endDate = to.Date;
+            var allDays = Enumerable.Range(0, (endDate - startDate).Days + 1)
+                .Select(i => DateOnly.FromDateTime(startDate.AddDays(i)))
+                .ToList();
+
+            var query = _context.InventoryTransactions
+                .AsNoTracking()
+                .Where(t => t.TransactionType == "Outbound" && t.ProductId.HasValue && productIdList.Contains(t.ProductId.Value) && t.CreatedAt.HasValue && t.CreatedAt.Value.Date >= startDate && t.CreatedAt.Value.Date <= endDate && t.Warehouse != null && t.Warehouse.CompanyId == companyId);
+            if (warehouseId.HasValue && warehouseId.Value > 0)
+                query = query.Where(t => t.WarehouseId == warehouseId.Value);
+
+            var rows = await query
+                .Select(t => new
+                {
+                    ProductId = t.ProductId!.Value,
+                    ProductName = t.Product != null ? t.Product.Name : null,
+                    Day = DateOnly.FromDateTime(t.CreatedAt!.Value),
+                    Qty = Math.Abs(t.QuantityChange ?? 0)
+                })
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            var grouped = rows
+                .GroupBy(x => new { x.ProductId, x.ProductName })
+                .ToDictionary(g => g.Key.ProductId, g => new { g.Key.ProductName, Days = g.ToDictionary(x => x.Day, x => x.Qty) });
+
+            return productIdList.Select(productId =>
+            {
+                grouped.TryGetValue(productId, out var meta);
+                var outboundInfo = allDays.Select(day => new IInventoryOutboundRepository.OutboundHistoryPointDto(
+                    day,
+                    meta != null && meta.Days.TryGetValue(day, out var qty) ? qty : 0)).ToList();
+                return new IInventoryOutboundRepository.OutboundHistoryProductDto(productId, meta?.ProductName, outboundInfo);
+            }).ToList();
+        }
+
         private async Task EnsureStaffAssignedToWarehouseAsync(int warehouseId, int staffId)
         {
             var user = await _context.Users
