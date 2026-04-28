@@ -2580,6 +2580,7 @@ namespace Storix_BE.Repository.Implementation
                     .ThenInclude(i => i.Product)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
+                .Include(o => o.Staff)
                 .Where(o => o.Warehouse != null && o.Warehouse.CompanyId == companyId);
 
             if (warehouseId.HasValue && warehouseId.Value > 0)
@@ -2602,6 +2603,7 @@ namespace Storix_BE.Repository.Implementation
                     .ThenInclude(i => i.Product)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
+                .Include(o => o.Staff)
                 .Where(o => o.WarehouseId == warehouseId)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync()
@@ -2615,6 +2617,7 @@ namespace Storix_BE.Repository.Implementation
                     .ThenInclude(i => i.Product)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
+                .Include(o => o.Staff)
                 .FirstOrDefaultAsync(o =>
                     o.Id == id &&
                     o.Warehouse != null &&
