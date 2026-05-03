@@ -220,7 +220,7 @@ namespace Storix_BE.Repository.Implementation
                     WarehouseId = order.DestinationWarehouseId,
                     CreatedBy = actorUserId,
                     StaffId = receiverStaffId,
-                    Status = "WAITING_RECEIPT",
+                    Status = InboundOrderStatuses.WaitingToOutboundComplete,
                     ReferenceCode = $"Waiting Assign Staff#{order.Id}",
                     CreatedAt = now
                 };
