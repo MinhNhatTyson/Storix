@@ -494,92 +494,94 @@ namespace Storix_BE.Repository.Implementation
                         }
                     }
 
-                }
+                    var allItems = order.InboundOrderItems;
+                    var anyReceived = allItems.Any(i => (i.ReceivedQuantity ?? 0) > 0);
+                    var allComplete = allItems.Any() && allItems.All(i => (i.ExpectedQuantity ?? 0) > 0 && (i.ReceivedQuantity ?? 0) == (i.ExpectedQuantity ?? 0));
 
-                // Update order status regardless of placements.
-                var allItems = order.InboundOrderItems;
-                var anyReceived = allItems.Any(i => (i.ReceivedQuantity ?? 0) > 0);
-                var allComplete = allItems.Any() && allItems.All(i => (i.ExpectedQuantity ?? 0) > 0 && (i.ReceivedQuantity ?? 0) == (i.ExpectedQuantity ?? 0));
+                    if (allComplete)
+                        order.Status = "Completed";
+                    else if (anyReceived)
+                        order.Status = "Partially Completed";
 
-                if (allComplete)
-                    order.Status = "Completed";
-                else if (anyReceived)
-                    order.Status = "Partially Completed";
+                    // ── FIFO Batch update ────────────────────────────────────────────────────
+                    // Load existing batches for this inbound order
+                    var existingBatches = await _context.InventoryBatches
+                        .Include(b => b.BatchLocations)
+                        .Where(b => b.InboundOrderId == inboundOrderId)
+                        .ToListAsync()
+                        .ConfigureAwait(false);
 
-                // Keep FIFO batches in sync with received delta even when placement is not sent.
-                var existingBatches = await _context.InventoryBatches
-                    .Include(b => b.BatchLocations)
-                    .Where(b => b.InboundOrderId == inboundOrderId)
-                    .ToListAsync()
-                    .ConfigureAwait(false);
-
-                foreach (var (inboundItemId, productId, delta) in deltas)
-                {
-                    if (delta <= 0) continue;
-
-                    var batch = existingBatches.FirstOrDefault(b => b.ProductId == productId);
-                    if (batch == null)
+                    foreach (var (inboundItemId, productId, delta) in deltas)
                     {
-                        batch = new InventoryBatch
+                        if (delta <= 0) continue; // only process positive received quantities
+
+                        var batch = existingBatches.FirstOrDefault(b => b.ProductId == productId);
+                        if (batch == null)
                         {
-                            InboundOrderId = inboundOrderId,
-                            ProductId = productId,
-                            WarehouseId = order.WarehouseId!.Value,
-                            ReceivedQuantity = 0,
-                            RemainingQuantity = 0,
-                            UnitCost = (decimal)(order.InboundOrderItems
-                                .FirstOrDefault(i => i.ProductId == productId)?.Price ?? 0),
-                            LineDiscount = (decimal)(order.InboundOrderItems
-                                .FirstOrDefault(i => i.ProductId == productId)?.Discount ?? 0),
-                            InboundDate = order.CreatedAt ??
-                                DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-                            IsExhausted = false,
-                            CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-                        };
-                        _context.InventoryBatches.Add(batch);
-                        existingBatches.Add(batch);
-                    }
-
-                    batch.ReceivedQuantity += delta;
-                    batch.RemainingQuantity += delta;
-                    batch.UpdatedAt = now;
-
-                    if (!placementList.Any()) continue;
-
-                    var itemPlacements = placementList
-                        .Where(p => p.ProductId == productId && p.InboundOrderItemId == inboundItemId)
-                        .ToList();
-
-                    foreach (var placement in itemPlacements)
-                    {
-                        var bin = bins.FirstOrDefault(b => b.IdCode == placement.BinIdCode);
-                        if (bin == null) continue;
-
-                        var existingLocation = batch.BatchLocations
-                            .FirstOrDefault(bl => bl.BinId == bin.Id);
-
-                        if (existingLocation == null)
-                        {
-                            batch.BatchLocations.Add(new InventoryBatchLocation
+                            // Fallback: create batch if skeleton was not created at order creation
+                            var incomingItem = incomingList.First(i => i.ProductId == productId);
+                            batch = new InventoryBatch
                             {
-                                BinId = bin.Id,
-                                Quantity = placement.Quantity,
-                                UpdatedAt = now
-                            });
+                                InboundOrderId = inboundOrderId,
+                                ProductId = productId,
+                                WarehouseId = order.WarehouseId!.Value,
+                                ReceivedQuantity = 0,
+                                RemainingQuantity = 0,
+                                UnitCost = (decimal)(order.InboundOrderItems
+                                    .FirstOrDefault(i => i.ProductId == productId)?.Price ?? 0),
+                                LineDiscount = (decimal)(order.InboundOrderItems
+                                    .FirstOrDefault(i => i.ProductId == productId)?.Discount ?? 0),
+                                InboundDate = order.CreatedAt ??
+                                    DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                                IsExhausted = false,
+                                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+                            };
+                            _context.InventoryBatches.Add(batch);
+                            existingBatches.Add(batch);
                         }
-                        else
+
+                        // Update received/remaining quantities
+                        batch.ReceivedQuantity += delta;
+                        batch.RemainingQuantity += delta;
+                        batch.UpdatedAt = now;
+
+                        // Update BatchLocations from placements
+                        if (placementList.Any())
                         {
-                            existingLocation.Quantity += placement.Quantity;
-                            existingLocation.UpdatedAt = now;
+                            var itemPlacements = placementList
+                                .Where(p => p.ProductId == productId && p.InboundOrderItemId == inboundItemId)
+                                .ToList();
+
+                            foreach (var placement in itemPlacements)
+                            {
+                                var bin = bins.FirstOrDefault(b => b.IdCode == placement.BinIdCode);
+                                if (bin == null) continue;
+
+                                var existingLocation = batch.BatchLocations
+                                    .FirstOrDefault(bl => bl.BinId == bin.Id);
+
+                                if (existingLocation == null)
+                                {
+                                    batch.BatchLocations.Add(new InventoryBatchLocation
+                                    {
+                                        BinId = bin.Id,
+                                        Quantity = placement.Quantity,
+                                        UpdatedAt = now
+                                    });
+                                }
+                                else
+                                {
+                                    existingLocation.Quantity += placement.Quantity;
+                                    existingLocation.UpdatedAt = now;
+                                }
+                            }
                         }
                     }
+                    // ── End FIFO Batch update ─────────────────────────────────────────────────
+
+                    await _context.SaveChangesAsync().ConfigureAwait(false);
+                    await tx.CommitAsync().ConfigureAwait(false);
                 }
-
-                await EnsureInventoryLocationInvariantAsync(order.WarehouseId.Value, productIds, "InboundUpdateItems")
-                    .ConfigureAwait(false);
-
-                await _context.SaveChangesAsync().ConfigureAwait(false);
-                await tx.CommitAsync().ConfigureAwait(false);
             }
             catch
             {
@@ -601,48 +603,6 @@ namespace Storix_BE.Repository.Implementation
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync()
                 .ConfigureAwait(false);
-        }
-
-        private async Task EnsureInventoryLocationInvariantAsync(int warehouseId, IEnumerable<int> productIds, string context)
-        {
-            var distinctProductIds = productIds?
-                .Where(x => x > 0)
-                .Distinct()
-                .ToList() ?? new List<int>();
-
-            if (!distinctProductIds.Any())
-                return;
-
-            var inventories = await _context.Inventories
-                .Where(i => i.WarehouseId == warehouseId
-                            && i.ProductId.HasValue
-                            && distinctProductIds.Contains(i.ProductId.Value))
-                .Select(i => new { i.Id, ProductId = i.ProductId!.Value, Quantity = i.Quantity ?? 0 })
-                .ToListAsync()
-                .ConfigureAwait(false);
-
-            if (!inventories.Any())
-                return;
-
-            var inventoryIds = inventories.Select(x => x.Id).ToList();
-            var locationSums = await _context.InventoryLocations
-                .Where(il => il.InventoryId.HasValue && inventoryIds.Contains(il.InventoryId.Value))
-                .GroupBy(il => il.InventoryId!.Value)
-                .Select(g => new { InventoryId = g.Key, Quantity = g.Sum(x => x.Quantity ?? 0) })
-                .ToListAsync()
-                .ConfigureAwait(false);
-
-            var locationQtyByInventory = locationSums.ToDictionary(x => x.InventoryId, x => x.Quantity);
-
-            foreach (var inv in inventories)
-            {
-                var locationQty = locationQtyByInventory.TryGetValue(inv.Id, out var qty) ? qty : 0;
-                if (inv.Quantity != locationQty)
-                {
-                    throw new InvalidOperationException(
-                        $"Inventory-location mismatch in {context}: WarehouseId={warehouseId}, ProductId={inv.ProductId}, InventoryQty={inv.Quantity}, LocationQty={locationQty}.");
-                }
-            }
         }
         
         public async Task<List<InboundOrder>> GetAllInboundOrdersAsync(int companyId)
