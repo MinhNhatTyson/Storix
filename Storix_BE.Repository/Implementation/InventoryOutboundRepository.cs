@@ -389,9 +389,29 @@ namespace Storix_BE.Repository.Implementation
 
             await EnsureWarehouseActiveAsync(outboundRequest.WarehouseId.Value).ConfigureAwait(false);
 
-            var productIds = outboundRequest.OutboundOrderItems
-                .Where(i => i.ProductId.HasValue)
-                .Select(i => i.ProductId!.Value)
+            var requestSourceItems = (outboundRequest.OutboundOrderItems ?? new List<OutboundOrderItem>())
+                .Where(i => !i.OutboundOrderId.HasValue)
+                .ToList();
+
+            if (!requestSourceItems.Any())
+                throw new InvalidOperationException("OutboundRequest does not contain source items for order creation.");
+
+            var normalizedRequestItems = requestSourceItems
+                .Where(i => i.ProductId.HasValue && i.Quantity.HasValue && i.Quantity.Value > 0)
+                .GroupBy(i => i.ProductId!.Value)
+                .Select(g => new
+                {
+                    ProductId = g.Key,
+                    Quantity = g.Sum(x => x.Quantity ?? 0),
+                    Price = g.Select(x => x.Price).FirstOrDefault()
+                })
+                .ToList();
+
+            if (!normalizedRequestItems.Any())
+                throw new InvalidOperationException("OutboundRequest source items must specify ProductId and Quantity.");
+
+            var productIds = normalizedRequestItems
+                .Select(i => i.ProductId)
                 .Distinct()
                 .ToList();
 
@@ -400,11 +420,8 @@ namespace Storix_BE.Repository.Implementation
                 .ToListAsync()
                 .ConfigureAwait(false);
 
-            foreach (var reqItem in outboundRequest.OutboundOrderItems)
+            foreach (var reqItem in normalizedRequestItems)
             {
-                if (!reqItem.ProductId.HasValue || !reqItem.Quantity.HasValue)
-                    throw new InvalidOperationException("OutboundRequest items must specify ProductId and Quantity.");
-
                 var inventory = inventories.FirstOrDefault(i => i.ProductId == reqItem.ProductId);
                 if (inventory == null || (inventory.Quantity ?? 0) < reqItem.Quantity)
                 {
@@ -432,7 +449,7 @@ namespace Storix_BE.Repository.Implementation
 
             var method = string.IsNullOrWhiteSpace(pricingMethod) ? "LastPurchasePrice" : pricingMethod.Trim();
 
-            foreach (var reqItem in outboundRequest.OutboundOrderItems)
+            foreach (var reqItem in normalizedRequestItems)
             {
                 var costPrice = await ResolveCostPriceAsync(reqItem.ProductId, method, outboundRequest.CreatedAt)
                     .ConfigureAwait(false);
