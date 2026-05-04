@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Asn1.Ocsp;
+using Storix_BE.Domain.Enum;
 using Storix_BE.Service.Implementation;
 using Storix_BE.Service.Interfaces;
 
@@ -59,7 +60,7 @@ namespace Storix_BE.API.Controllers
             });
         }
         [HttpGet("get-all/{userId:int}")]
-        [Authorize(Roles = "2,3")]
+        [Authorize(Roles = "2,3,4")]
         public async Task<IActionResult> GetAllProductsFromACompany(int userId)
         {
             if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
@@ -79,7 +80,7 @@ namespace Storix_BE.API.Controllers
             return Ok(items);
         }
         [HttpGet("get-by-id/{userId:int}/{id:int}")]
-        [Authorize(Roles = "2,3")]
+        [Authorize(Roles = "2,3,4")]
         public async Task<IActionResult> GetById(int userId, int id)
         {
             if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
@@ -97,13 +98,13 @@ namespace Storix_BE.API.Controllers
 
             if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
 
-            var item = await _service.GetByIdAsync(id, companyId); 
+            var item = await _service.GetByIdAsync(id, companyId);
             if (item == null) return NotFound();
             return Ok(item);
         }
 
         [HttpGet("get-by-sku/{userId:int}/sku/{sku}")]
-        [Authorize(Roles = "2,3")]
+        [Authorize(Roles = "2,3,4")]
         public async Task<IActionResult> GetBySku(int userId, string sku)
         {
             if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
@@ -308,41 +309,41 @@ namespace Storix_BE.API.Controllers
 
             return Ok(new { message = "Excel import successful" });
         }
-       [HttpGet("categories/children/{parentId:int}")]
-       [Authorize(Roles = "2,3")]
-       public async Task<IActionResult> GetCategoryChildren(int parentId)
-       {
-           if (parentId <= 0) return BadRequest(new { message = "Invalid parent category id." });
+        [HttpGet("categories/children/{parentId:int}")]
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetCategoryChildren(int parentId)
+        {
+            if (parentId <= 0) return BadRequest(new { message = "Invalid parent category id." });
 
-           try
-           {
-               var children = await _service.GetChildCategoriesAsync(parentId);
-               return Ok(children);
-           }
-           catch (InvalidOperationException ex)
-           {
-               return BadRequest(new { message = ex.Message });
+            try
+            {
+                var children = await _service.GetChildCategoriesAsync(parentId);
+                return Ok(children);
             }
-       }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
         [HttpGet("categories/company/{userId:int}")]
-       [Authorize(Roles = "2,3")]
-       public async Task<IActionResult> GetAllCategoriesForCompany(int userId)
-       {
-           if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
+        [Authorize(Roles = "2,3")]
+        public async Task<IActionResult> GetAllCategoriesForCompany(int userId)
+        {
+            if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
 
-           try
-           {
-               var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
-               if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
+            try
+            {
+                var companyId = await _service.GetCompanyIdByUserIdAsync(userId);
+                if (companyId <= 0) return NotFound("Cannot find company id with the provided user id");
 
-               var categories = await _service.GetAllProductCategoriesAsync(companyId);
-               return Ok(categories);
-           }
-           catch (InvalidOperationException ex)
-           {
-               return BadRequest(new { message = ex.Message });
-           }
-       }
+                var categories = await _service.GetAllProductCategoriesAsync(companyId);
+                return Ok(categories);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
         [HttpPost("categories/create")]
         [Authorize(Roles = "2")]
@@ -363,26 +364,45 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [HttpGet("categories/resolve-code")]
+        [Authorize(Roles = "2")]
+        public IActionResult ResolveCategoryCode([FromQuery] string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return BadRequest(new { message = "Name is required." });
 
-        [HttpDelete("categories/{id:int}")]
-         [Authorize(Roles = "2")]
-           public async Task<IActionResult> DeleteCategory(int id)
+            var code = ProductCategoryCodeResolver.ResolveAsString(name);
+            var isKnown = ProductCategoryCodeResolver.IsKnown(name);
+
+            return Ok(new
             {
-               if (id <= 0) return BadRequest(new { message = "Invalid category id." });
-    
-               try
-           {
-        var removed = await _service.DeleteProductCategoryAsync(id);
-                       if (!removed) return NotFound();
-                       return NoContent();
-                   }
-               catch (InvalidOperationException ex)
-           {
-                       return BadRequest(new { message = ex.Message });
-                   }
-           }
+                name,
+                resolvedCode = code,
+                isKnown,
+                note = isKnown
+                    ? $"Name matched a known electronics category ? code '{code}' will be assigned."
+                    : $"Name did not match any known category ? fallback code 'GEN' will be assigned."
+            });
+        }
+        [HttpDelete("categories/{id:int}")]
+        [Authorize(Roles = "2")]
+        public async Task<IActionResult> DeleteCategory(int id)
+        {
+            if (id <= 0) return BadRequest(new { message = "Invalid category id." });
+
+            try
+            {
+                var removed = await _service.DeleteProductCategoryAsync(id);
+                if (!removed) return NotFound();
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
         [HttpGet("inventory-locations/{userId:int}/{productId:int}/warehouse/{warehouseId:int}")]
-        [Authorize(Roles = "2,3")]
+        [Authorize(Roles = "2,3,4")]
         public async Task<IActionResult> GetProductInventoryLocations(int userId, int productId, int warehouseId)
         {
             if (userId <= 0) return BadRequest(new { message = "Invalid user id." });
@@ -422,8 +442,8 @@ namespace Storix_BE.API.Controllers
         [HttpPost("get-by-zones/{userId:int}")]
         [Authorize(Roles = "2,3")]
         public async Task<IActionResult> GetAllProductWithZone([FromBody] IEnumerable<int> zoneIds)
-        {            
-            if (zoneIds == null || !zoneIds.Any()) return BadRequest(new { message = "Zone ids are required." });            
+        {
+            if (zoneIds == null || !zoneIds.Any()) return BadRequest(new { message = "Zone ids are required." });
 
             // fetch products associated with provided zones
             var products = await _service.GetAllProductWithZoneAsync(zoneIds);
@@ -441,6 +461,26 @@ namespace Storix_BE.API.Controllers
             });
 
             return Ok(result);
+        }
+        [HttpGet("package-types/resolve-code")]
+        [Authorize(Roles = "2,3")]
+        public IActionResult ResolvePackageTypeCode([FromQuery] string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return BadRequest(new { message = "Input is required." });
+
+            var code = ProductPackageTypeResolver.ResolveAsString(input);
+            var isKnown = ProductPackageTypeResolver.IsKnown(input);
+
+            return Ok(new
+            {
+                input,
+                resolvedCode = code,
+                isKnown,
+                note = isKnown
+                    ? $"Matched a known package type ? code '{code}' will be used in SKU."
+                    : "No match found ? fallback code 'PKG' will be used in SKU."
+            });
         }
     }
 }

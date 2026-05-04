@@ -1,4 +1,5 @@
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -9,7 +10,7 @@ namespace Storix_BE.Service.Interfaces
         Task<List<Warehouse>> GetWarehousesByCompanyAsync(int companyId, int callerRoleId);
         Task<List<WarehouseAssignment>> GetAssignmentsByCompanyAsync(int companyId, int callerRoleId);
         Task<List<WarehouseAssignment>> GetAssignmentsByWarehouseAsync(int companyId, int callerRoleId, int warehouseId);
-        Task<List<WarehouseAssignment>> AssignWarehousesAsync(int companyId, int callerRoleId, AssignWarehousesRequest request);
+        Task<WarehouseAssignment> AssignWarehouseAsync(int companyId, int callerRoleId, AssignWarehouseRequest request);
         Task<bool> UnassignWarehouseAsync(int companyId, int callerRoleId, int userId, int warehouseId);
         Task<int> CountAssignmentsByUserAsync(int userId);
         Task<int> UpdateRoleInAssignmentsAsync(int userId, string roleInWarehouse);
@@ -18,11 +19,13 @@ namespace Storix_BE.Service.Interfaces
 
         Task<Warehouse> GetWarehouseStructureAsync(int companyId, int warehouseId);
         Task<bool> DeleteWarehouseAsync(int companyId, int warehouseId);
-        Task<List<int>> GetZoneIdsByWarehouseAsync(int companyId, int warehouseId);
+        Task<List<ZoneResponse>> GetZoneIdsByWarehouseAsync(int companyId, int warehouseId);
         Task<bool> DisableWarehouseAsync(int warehouseId);
+        Task<Warehouse> GetWarehouseStructureWithoutBinAsync(int companyId, int warehouseId);
+        Task<List<ShelfLevel>> GetBinsByShelfIdAsync(int companyId, int shelfId);
     }
 
-    public sealed record AssignWarehousesRequest(int WarehouseId, IEnumerable<int>? UserIds, int? UserId);
+    public sealed record AssignWarehouseRequest(int UserId, int WarehouseId);
     public sealed record CreateWarehouseRequest(
         double? Width,
         double? Height,

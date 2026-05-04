@@ -1,5 +1,9 @@
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Storix_BE.Repository.Interfaces
@@ -21,7 +25,11 @@ namespace Storix_BE.Repository.Interfaces
         Task<bool> UpdateWarehouseStructureAsync(int warehouseId, Warehouse warehouseStructure);
         Task<Warehouse?> GetWarehouseWithStructureAsync(int warehouseId);
         Task<bool> DeleteWarehouseAsync(int warehouseId);
-        Task<List<int>> GetZoneIdsByWarehouseIdAsync(int warehouseId);
+        Task<List<ZoneResponse>> GetZoneIdsByWarehouseIdAsync(int warehouseId);
         Task<bool> DisableWarehouseAsync(int warehouseId);
+        Task<Warehouse?> GetWarehouseStructureWithoutBinAsync(int warehouseId);
+
+        // Added for: Get all levels (and their bins) for a given shelf id
+        Task<List<ShelfLevel>> GetLevelsAndBinsByShelfIdAsync(int shelfId);
     }
 }
