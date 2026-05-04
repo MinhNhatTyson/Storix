@@ -2533,17 +2533,26 @@ namespace Storix_BE.Repository.Implementation
                 query = query.Where(r => r.WarehouseId == warehouseId.Value);
             }
 
-            return await query
+            var requests = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync()
                 .ConfigureAwait(false);
+
+            foreach (var request in requests)
+            {
+                request.OutboundOrderItems = (request.OutboundOrderItems ?? new List<OutboundOrderItem>())
+                    .Where(i => !i.OutboundOrderId.HasValue)
+                    .ToList();
+            }
+
+            return requests;
         }
 
         public async Task<List<OutboundRequest>> GetOutboundRequestsByWarehouseIdAsync(int warehouseId)
         {
             if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
 
-            return await _context.OutboundRequests
+            var requests = await _context.OutboundRequests
                 .Include(r => r.OutboundOrderItems)
                     .ThenInclude(i => i.Product)
                 .Include(r => r.Warehouse)
@@ -2553,6 +2562,15 @@ namespace Storix_BE.Repository.Implementation
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync()
                 .ConfigureAwait(false);
+
+            foreach (var request in requests)
+            {
+                request.OutboundOrderItems = (request.OutboundOrderItems ?? new List<OutboundOrderItem>())
+                    .Where(i => !i.OutboundOrderId.HasValue)
+                    .ToList();
+            }
+
+            return requests;
         }
 
         public async Task<OutboundRequest> GetOutboundRequestByIdAsync(int companyId, int id)
@@ -2571,6 +2589,10 @@ namespace Storix_BE.Repository.Implementation
 
             if (request == null)
                 throw new InvalidOperationException($"OutboundRequest with id {id} not found.");
+
+            request.OutboundOrderItems = (request.OutboundOrderItems ?? new List<OutboundOrderItem>())
+                .Where(i => !i.OutboundOrderId.HasValue)
+                .ToList();
 
             return request;
         }
