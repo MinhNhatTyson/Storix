@@ -3,6 +3,7 @@ using DocumentFormat.OpenXml.Office2016.Excel;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Http;
 using Org.BouncyCastle.Asn1.Ocsp;
+using Storix_BE.Domain.Enum;
 using Storix_BE.Domain.Models;
 using Storix_BE.Repository.DTO;
 using Storix_BE.Repository.Implementation;
@@ -42,17 +43,15 @@ namespace Storix_BE.Service.Implementation
             // 1. Supplier initials
             var supplierCode = BuildSupplierInitials(supplierName);
 
-            // 2. Category code (already validated upstream)
+            // 2. Category code (already resolved upstream via ProductCategoryCodeResolver)
             var catCode = string.IsNullOrWhiteSpace(categoryCode)
                 ? "GEN"
                 : categoryCode.Trim().ToUpperInvariant();
 
-            // 3. Package type
-            var pkgCode = string.IsNullOrWhiteSpace(packageType)
-                ? "GEN"
-                : packageType.Trim().ToUpperInvariant().Replace(" ", "");
+            // 3. Package type — resolve Vietnamese/English free-text → standard code
+            var pkgCode = ProductPackageTypeResolver.ResolveAsString(packageType);
 
-            // 4. Size standard
+            // 4. Size standard — keep as-is, just normalise
             var sizeCode = string.IsNullOrWhiteSpace(sizeStandard)
                 ? "STD"
                 : sizeStandard.Trim().ToUpperInvariant().Replace(" ", "");
@@ -69,7 +68,7 @@ namespace Storix_BE.Service.Implementation
             // 6. Sequence — Repository owns the DB call
             var seq = await _repo.ClaimNextSkuSequenceAsync(companyId);
 
-            // 7. Assemble — CONCAT_WS equivalent: skip null segments
+            // 7. Assemble
             var segments = new List<string> { supplierCode, catCode, pkgCode, sizeCode };
             if (flags is not null) segments.Add(flags);
             segments.Add(seq.ToString("D5"));
@@ -361,16 +360,19 @@ namespace Storix_BE.Service.Implementation
         {
             if (request == null) throw new InvalidOperationException("Request cannot be null.");
             if (request.CompanyId <= 0) throw new InvalidOperationException("CompanyId must be a positive integer.");
+
             var name = request.Name?.Trim();
-            if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("Product category name is required.");
-            if (string.IsNullOrWhiteSpace(request.CategoryCode))
-                throw new InvalidOperationException("Category code is required.");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException("Product category name is required.");
+
+            // ── Auto-resolve category code from the Vietnamese / English name ──────
+            var categoryCode = ProductCategoryCodeResolver.ResolveAsString(name);
 
             var toCreate = new ProductCategory
             {
                 CompanyId = request.CompanyId,
                 Name = name,
-                CategoryCode = request.CategoryCode.Trim().ToUpperInvariant(),
+                CategoryCode = categoryCode,
                 ParentCategoryId = (request.ParentCategoryId.HasValue && request.ParentCategoryId.Value == 0)
                                        ? null
                                        : request.ParentCategoryId

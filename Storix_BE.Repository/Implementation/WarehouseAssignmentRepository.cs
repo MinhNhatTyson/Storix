@@ -1,10 +1,12 @@
-using DocumentFormat.OpenXml.InkML;
 using Microsoft.EntityFrameworkCore;
 using Storix_BE.Domain.Context;
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using Storix_BE.Repository.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Storix_BE.Repository.Implementation
@@ -18,14 +20,27 @@ namespace Storix_BE.Repository.Implementation
         {
             _context = context;
         }
-        public async Task<List<int>> GetZoneIdsByWarehouseIdAsync(int warehouseId)
+        public async Task<List<ZoneResponse>> GetZoneIdsByWarehouseIdAsync(int warehouseId)
         {
-            if (warehouseId <= 0) return new List<int>();
-            return await _context.StorageZones
+            if (warehouseId <= 0) return new List<ZoneResponse>();
+            var list = await _context.StorageZones
                 .AsNoTracking()
                 .Where(z => z.WarehouseId == warehouseId)
-                .Select(z => z.Id)
+                .Select(z => new ZoneResponse
+                {
+                    Id = z.Id,
+                    Code = z.Code ?? "",
+                    IsEsd = z.IsEsd,
+                    IsMsd = z.IsMsd,
+                    IsCold = z.IsCold,
+                    IsVulnerable = z.IsVulnerable,
+                    IsHighValue = z.IsHighValue,
+                    Width = z.Width,
+                    Height = z.Height,
+                    Length = z.Length
+                })
                 .ToListAsync();
+            return list;
         }
         public async Task<Warehouse?> GetWarehouseByIdAsync(int warehouseId)
         {
@@ -524,6 +539,37 @@ namespace Storix_BE.Repository.Implementation
             _context.Warehouses.Update(warehouse);
             await _context.SaveChangesAsync().ConfigureAwait(false);
             return true;
+        }
+        public async Task<Warehouse?> GetWarehouseStructureWithoutBinAsync(int warehouseId)
+        {
+            if (warehouseId <= 0) return null;
+
+            var warehouse = await _context.Warehouses
+                .AsNoTracking()
+                .Where(w => w.Id == warehouseId)
+                .Include(w => w.StorageZones)
+                    .ThenInclude(z => z.Shelves)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            return warehouse;
+        }
+
+        // Returns all ShelfLevels for the shelf along with their ShelfLevelBins (levels + bins)
+        public async Task<List<ShelfLevel>> GetLevelsAndBinsByShelfIdAsync(int shelfId)
+        {
+            if (shelfId <= 0) return new List<ShelfLevel>();
+
+            var levels = await _context.ShelfLevels
+                .AsNoTracking()
+                .Where(l => l.ShelfId == shelfId)
+                .Include(l => l.Shelf)
+                    .ThenInclude(s => s.Zone)
+                .Include(l => l.ShelfLevelBins)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            return levels;
         }
     }
 }
