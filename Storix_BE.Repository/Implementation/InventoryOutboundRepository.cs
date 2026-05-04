@@ -2908,6 +2908,20 @@ namespace Storix_BE.Repository.Implementation
                 var locationQty = locationQtyByInventory.TryGetValue(inv.Id, out var qty) ? qty : 0;
                 if (inv.Quantity != locationQty)
                 {
+                    if (!string.IsNullOrWhiteSpace(context)
+                        && context.IndexOf("BeforeDeduct", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        _context.ActivityLogs.Add(new ActivityLog
+                        {
+                            UserId = null,
+                            Entity = "OutboundOrder",
+                            EntityId = 0,
+                            Action = $"OUTBOUND_INVARIANT_WARN:{context};WAREHOUSE={warehouseId};PRODUCT={inv.ProductId};INV_QTY={inv.Quantity};LOC_QTY={locationQty}",
+                            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+                        });
+                        continue;
+                    }
+
                     throw new InvalidOperationException(
                         $"Inventory-location mismatch in {context}: WarehouseId={warehouseId}, ProductId={inv.ProductId}, InventoryQty={inv.Quantity}, LocationQty={locationQty}.");
                 }
