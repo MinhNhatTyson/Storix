@@ -3,11 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Storix_BE.API.DTO;
 using Storix_BE.Domain.Exception;
 using Storix_BE.Domain.Models;
+using Storix_BE.Repository.DTO;
 using Storix_BE.Service.Implementation;
 using Storix_BE.Service.Interfaces;
-using System.Collections.Generic;
 using System.Linq;
-using AssignWarehousesRequest = Storix_BE.Service.Interfaces.AssignWarehousesRequest;
+using AssignWarehouseRequest = Storix_BE.Service.Interfaces.AssignWarehouseRequest;
 using CreateWarehouseRequest = Storix_BE.Service.Interfaces.CreateWarehouseRequest;
 
 namespace Storix_BE.API.Controllers
@@ -191,8 +191,8 @@ namespace Storix_BE.API.Controllers
                 if (caller.CompanyId.Value != companyId)
                     return Forbid();
                 var assignments = await _assignmentService.GetAssignmentsByWarehouseAsync(
-                    companyId,
-                    roleId.Value,
+                        companyId,
+                        roleId.Value,
                     warehouseId);
                 return Ok(assignments.Select(MapAssignment));
             }
@@ -214,18 +214,12 @@ namespace Storix_BE.API.Controllers
         /// Assign a warehouse to a Manager/Staff. Company Administrator only.
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> AssignWarehouse(int companyId, [FromBody] AssignWarehousesRequest request)
+        public async Task<IActionResult> AssignWarehouse(int companyId, [FromBody] AssignWarehouseRequest request)
         {
             if (companyId <= 0)
                 return BadRequest(new { message = "CompanyId is required." });
-            if (request == null || request.WarehouseId <= 0)
-                return BadRequest(new { message = "WarehouseId is required." });
-
-            var requestedUserIds = new List<int>();
-            if (request.UserIds != null) requestedUserIds.AddRange(request.UserIds);
-            if (request.UserId.HasValue) requestedUserIds.Add(request.UserId.Value);
-            if (!requestedUserIds.Any(id => id > 0))
-                return BadRequest(new { message = "At least one valid userId is required." });
+            if (request == null || request.UserId <= 0 || request.WarehouseId <= 0)
+                return BadRequest(new { message = "UserId and WarehouseId are required." });
             var roleId = GetRoleIdFromToken();
             var email = GetEmailFromToken();
             if (roleId == null || string.IsNullOrEmpty(email))
@@ -238,8 +232,8 @@ namespace Storix_BE.API.Controllers
                     return Unauthorized();
                 if (caller.CompanyId.Value != companyId)
                     return Forbid();
-                var assignments = await _assignmentService.AssignWarehousesAsync(companyId, roleId.Value, request);
-                return Ok(assignments.Select(MapAssignment));
+                var assignment = await _assignmentService.AssignWarehouseAsync(companyId, roleId.Value, request);
+                return Ok(MapAssignment(assignment));
             }
             catch (UnauthorizedAccessException)
             {
@@ -330,7 +324,7 @@ namespace Storix_BE.API.Controllers
         /// Create new warehouse (Company Administrator only). Route: POST /api/company-warehouses/{companyId}
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "2")]
+        [Authorize(Roles = "2,3")]
         [Route("~/api/update-company-warehouse/{companyId:int}/structure/{warehouseId:int}")]
         public async Task<IActionResult> UpdateWarehouseStructure(int companyId, int warehouseId, [FromBody] CreateWarehouseRequest request)
         {
@@ -560,7 +554,7 @@ namespace Storix_BE.API.Controllers
                 // Find the start node (type == "start")
                 var startNode = warehouse.NavNodes?.FirstOrDefault(n => n.Type == "start");
                 double? startX = startNode?.XCoordinate;
-                double? startY = startNode?.YCoordinate;              
+                double? startY = startNode?.YCoordinate;
                 var endNode = warehouse.NavNodes?.FirstOrDefault(n => n.Type == "end");
 
                 var zones = warehouse.StorageZones?
@@ -628,7 +622,10 @@ namespace Storix_BE.API.Controllers
                                             width = b.Width,
                                             height = b.Height,
                                             length = b.Length,
-                                            productId = b.Inventory?.ProductId
+                                            productId = b.Inventory?.ProductId,
+                                            productWidth = b.Inventory?.Product?.Width,
+                                            productHeight = b.Inventory?.Product?.Height,
+                                            productLength = b.Inventory?.Product?.Length
                                         }).ToList()
                                         : new List<object>()
                                 }).ToList()
@@ -702,11 +699,10 @@ namespace Storix_BE.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-        [HttpGet("~/api/company-warehouses/{companyId:int}/warehouses/{warehouseId:int}/zones")]
+        [HttpGet("~/api/get-zone-ids/{warehouseId:int}/zones")]
         [Authorize(Roles = "2,3,4")]
-        public async Task<IActionResult> GetWarehouseZoneIds(int companyId, int warehouseId)
+        public async Task<IActionResult> GetWarehouseZoneIds(int warehouseId)
         {
-            if (companyId <= 0) return BadRequest(new { message = "CompanyId is required." });
             if (warehouseId <= 0) return BadRequest(new { message = "WarehouseId is required." });
 
             var roleId = GetRoleIdFromToken();
@@ -718,9 +714,8 @@ namespace Storix_BE.API.Controllers
             {
                 var caller = await _userService.GetByEmailAsync(email);
                 if (caller?.CompanyId == null) return Unauthorized();
-                if (caller.CompanyId.Value != companyId) return Forbid();
 
-                var zoneIds = await _assignmentService.GetZoneIdsByWarehouseAsync(companyId, warehouseId);
+                var zoneIds = await _assignmentService.GetZoneIdsByWarehouseAsync((int)caller.CompanyId, warehouseId);
                 return Ok(zoneIds);
             }
             catch (UnauthorizedAccessException)
@@ -760,7 +755,7 @@ namespace Storix_BE.API.Controllers
                 return Forbid();
             }
             catch (InvalidOperationException ex)
-            {                
+            {
                 return BadRequest(new { message = ex.Message });
             }
             catch (BusinessRuleException ex)
@@ -771,6 +766,22 @@ namespace Storix_BE.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+        [HttpGet("~/api/get-warehouse-structure-without-bin/{companyId:int}/{warehouseId:int}")]
+        [Authorize(Roles = "2,3,4")]
+        public async Task<IActionResult> GetWarehouseStructureWithoutBin(int companyId, int warehouseId)
+        {
+            var result = await _assignmentService.GetWarehouseStructureWithoutBinAsync(companyId, warehouseId);
+            return Ok(result);
+        }
+
+        // GET: /api/get-bins-based-on-shelf/{companyId}/{shelfId}
+        [HttpGet("~/api/get-bins-based-on-shelf/{companyId:int}/{shelfId:int}")]
+        [Authorize(Roles = "2,3,4")]
+        public async Task<IActionResult> GetBinBasedOnShelfId(int companyId, int shelfId)
+        {
+            var result = await _assignmentService.GetBinsByShelfIdAsync(companyId, shelfId);
+            return Ok(result);
         }
     }
 }
