@@ -389,7 +389,7 @@ namespace Storix_BE.Repository.Implementation
                         CreatedAt = now
                     };
                     _context.InventoryTransactions.Add(transaction);
-
+                    await _context.SaveChangesAsync().ConfigureAwait(false);
                     // If placements provided for this inbound item, update InventoryLocation and ShelfLevelBin
                     if (placementList.Any())
                     {
@@ -450,9 +450,9 @@ namespace Storix_BE.Repository.Implementation
                         {
                             var prod = products.FirstOrDefault(p => p.Id == a.ProductId);
                             if (prod == null) continue;
-                            var pw = prod.Width ?? 0.0;
-                            var ph = prod.Height ?? 0.0;
-                            var plength = prod.Length ?? 0.0;
+                            var pw = (prod.Width ?? 0.0) / 10.0;
+                            var ph = (prod.Height ?? 0.0) / 10.0;
+                            var plength = (prod.Length ?? 0.0) / 10.0;
                             double productUnitVolume = 0;
                             if (pw <= 0)
                             {
@@ -601,12 +601,12 @@ namespace Storix_BE.Repository.Implementation
                 .Include(r => r.Warehouse)
                 .Include(r => r.RequestedByNavigation)
                 .Include(r => r.ApprovedByNavigation)
-                .Where(r=> r.RequestedByNavigation.CompanyId == companyId)
+                .Where(r => r.RequestedByNavigation.CompanyId == companyId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync()
                 .ConfigureAwait(false);
         }
-        
+
         public async Task<List<InboundOrder>> GetAllInboundOrdersAsync(int companyId)
         {
             return await _context.InboundOrders
@@ -616,7 +616,7 @@ namespace Storix_BE.Repository.Implementation
                 .Include(o => o.Supplier)
                 .Include(o => o.Warehouse)
                 .Include(o => o.CreatedByNavigation)
-                .Where(o=> o.CreatedByNavigation.CompanyId == companyId)
+                .Where(o => o.CreatedByNavigation.CompanyId == companyId)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync()
                 .ConfigureAwait(false);
@@ -630,7 +630,7 @@ namespace Storix_BE.Repository.Implementation
                 .Include(r => r.Warehouse)
                 .Include(r => r.RequestedByNavigation)
                 .Include(r => r.ApprovedByNavigation)
-                .Where(r=> r.RequestedByNavigation.CompanyId == companyId)
+                .Where(r => r.RequestedByNavigation.CompanyId == companyId)
                 .FirstOrDefaultAsync(r => r.Id == id)
                 .ConfigureAwait(false);
 
@@ -673,6 +673,40 @@ namespace Storix_BE.Repository.Implementation
             }
 
             return order;
+        }
+        public async Task<List<InboundRequest>> GetInboundRequestsByWarehouseAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+
+            return await _context.InboundRequests
+                .Include(r => r.InboundOrderItems)
+                .Include(r => r.Supplier)
+                .Include(r => r.Warehouse)
+                .Include(r => r.RequestedByNavigation)
+                .Include(r => r.ApprovedByNavigation)
+                .Where(r => r.WarehouseId == warehouseId && r.RequestedByNavigation.CompanyId == companyId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
+        }
+
+        public async Task<List<InboundOrder>> GetInboundOrdersByWarehouseAsync(int companyId, int warehouseId)
+        {
+            if (companyId <= 0) throw new ArgumentException("Invalid company id.", nameof(companyId));
+            if (warehouseId <= 0) throw new ArgumentException("Invalid warehouse id.", nameof(warehouseId));
+
+            return await _context.InboundOrders
+                .Include(o => o.InboundOrderItems)
+                    .ThenInclude(i => i.Product)
+                .Include(o => o.InboundRequest)
+                .Include(o => o.Supplier)
+                .Include(o => o.Warehouse)
+                .Include(o => o.CreatedByNavigation)
+                .Where(o => o.WarehouseId == warehouseId && o.Warehouse != null && o.Warehouse.CompanyId == companyId)
+                .OrderByDescending(o => o.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
         }
         public async Task<bool> InboundRequestCodeExistsAsync(string code)
         {
@@ -1061,7 +1095,7 @@ namespace Storix_BE.Repository.Implementation
             return stream.ToArray();
         }
 
-        
+
         public async Task AddStorageRecommendationsAsync(IEnumerable<IInventoryInboundRepository.StorageRecommendationCreateDto> requests)
         {
             if (requests == null) throw new ArgumentNullException(nameof(requests));
