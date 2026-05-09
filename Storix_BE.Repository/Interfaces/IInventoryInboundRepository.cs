@@ -15,6 +15,8 @@ namespace Storix_BE.Repository.Interfaces
         Task<List<InboundOrder>> GetAllInboundOrdersAsync(int companyId);
         Task<InboundRequest> GetInboundRequestByIdAsync(int companyId, int id);
         Task<InboundOrder> GetInboundOrderByIdAsync(int companyId, int id);
+        Task<List<InboundRequest>> GetInboundRequestsByWarehouseAsync(int companyId, int warehouseId);
+        Task<List<InboundOrder>> GetInboundOrdersByWarehouseAsync(int companyId, int warehouseId);
         Task<InboundRequest> CreateInventoryInboundTicketRequest(InboundRequest request, IEnumerable<ProductPrice>? productPrices = null);
         Task<InboundRequest> UpdateInventoryInboundTicketRequestStatus(int ticketRequestId, int approverId, string status);
         Task<InboundOrder> CreateInboundOrderFromRequestAsync(int inboundRequestId, int createdBy, int? staffId);        
@@ -38,5 +40,20 @@ namespace Storix_BE.Repository.Interfaces
         Task AddStorageRecommendationsAsync(IEnumerable<StorageRecommendationCreateDto> requests);
         Task<List<InboundOrderItem>> GetInboundOrderItemsWithRecommendationsAsync(int inboundOrderId);
         Task<InboundOrder> AssignStaffToInboundOrderAsync(int companyId, int inboundOrderId, int managerUserId, int staffUserId);
+       
+        Task<InboundOrder> SaveQualityCheckAsync(
+            int inboundOrderId,
+            IEnumerable<QualityCheckSaveDto> items,
+            int inspectedBy);
+
+        Task<List<InboundQualityCheck>> GetQualityChecksByOrderIdAsync(int inboundOrderId);
     }
+    public sealed record QualityCheckSaveDto(
+        int InboundOrderItemId,
+        int ProductId,
+        int ReceivedQuantity,
+        int PassedQuantity,
+        int FailedQuantity,
+        string? FailureReason,
+        string? Notes);
 }
