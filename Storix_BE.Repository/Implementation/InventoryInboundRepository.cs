@@ -227,14 +227,22 @@ namespace Storix_BE.Repository.Implementation
             if (order == null)
                 throw new InvalidOperationException($"InboundOrder with id {inboundOrderId} not found.");
             // Must be in quality check status to update received quantities and place into bins (which triggers inventory updates and batch allocations)
-            if (!string.Equals(order.Status, "QUALITY_CHECK",
-                    StringComparison.OrdinalIgnoreCase))
+            var binPlacementAllowedStatuses = new[]
+    {
+        "QUALITY_CHECK",    // QC done, no return needed — place all passed units
+        "RETURN_PENDING",   // Return flagged but not yet approved — still allow placement
+        "RETURN_APPROVED",  // Return approved, staff can place passed units in parallel
+        "RETURNED"          // Goods shipped back, finalise placement of passed units
+    };
+
+            if (!binPlacementAllowedStatuses.Contains(
+                    order.Status ?? string.Empty,
+                    StringComparer.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
-                    $"Products can only be placed into bins when the order is in " +
-                    $"'QUALITY_CHECK' status. Current status: '{order.Status}'. " +
-                    $"Please submit the quality check first via " +
-                    $"POST /api/InventoryInbound/tickets/{inboundOrderId}/quality-check.");
+                    $"Products can only be placed into bins when the order is in one of: " +
+                    $"{string.Join(", ", binPlacementAllowedStatuses)}. " +
+                    $"Current status: '{order.Status}'.");
             }
             await EnsureTransferInboundReadyForReceivingAsync(order.Id).ConfigureAwait(false);
 
