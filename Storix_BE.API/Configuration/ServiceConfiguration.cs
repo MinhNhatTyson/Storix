@@ -33,6 +33,8 @@ namespace Storix_BE.API.Configuration
             services.AddTransient<IActivityLogService, ActivityLogService>();
             services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
             services.AddScoped<IInboundReturnService, InboundReturnService>();
+            services.AddSingleton<Storix_BE.Service.Barcode.BarcodeSessionStore>();
+            services.AddScoped<IBarcodeScanService, BarcodeScanService>();
             services.AddMemoryCache();
             // Filter kiểm tra subscription (Scoped vì phụ thuộc ISubscriptionService)
             // services.AddScoped<SubscriptionAccessFilter>(); // tạm tắt subscription
