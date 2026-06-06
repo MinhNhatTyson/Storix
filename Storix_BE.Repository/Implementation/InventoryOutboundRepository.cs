@@ -310,6 +310,7 @@ namespace Storix_BE.Repository.Implementation
                 .ToDictionary(
                     g => g.Key,
                     g => (IReadOnlyList<IInventoryOutboundRepository.WarehouseInventoryLocationDto>)g
+                        .Where(x => x.Quantity > 0)
                         .Select(x =>
                         {
                             var nestedBins = x.ShelfId.HasValue &&
